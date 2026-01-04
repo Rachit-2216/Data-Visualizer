@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface Tab {
   id: string;
-  type: 'overview' | 'data' | 'visuals' | 'drift' | 'sandbox' | 'chart';
+  type: 'overview' | 'data' | 'visuals' | 'drift' | 'sandbox' | 'chart' | 'code-viz';
   title: string;
   icon?: string;
   closable?: boolean;
@@ -132,6 +132,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           { id: overviewId, type: 'overview', title: 'Overview', closable: false },
           { id: generateTabId(), type: 'data', title: 'Data', closable: false },
           { id: generateTabId(), type: 'visuals', title: 'Visuals', closable: false },
+          { id: generateTabId(), type: 'code-viz', title: 'Code Viz', closable: false },
           { id: generateTabId(), type: 'sandbox', title: 'Sandbox', closable: false },
         ],
         activeTabId: overviewId,

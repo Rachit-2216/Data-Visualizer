@@ -17,26 +17,25 @@ export function BottomPanel() {
   const { activeBottomTab, setActiveBottomTab, toggleBottomPanel } = useLayoutStore();
 
   return (
-    <div className="h-full flex flex-col bg-background border-t">
-      {/* Tab header */}
-      <div className="h-8 flex items-center justify-between px-2 border-b bg-muted/30">
+    <div className="h-full flex flex-col bg-[#070b14] border-t border-white/10 text-white">
+      <div className="h-8 flex items-center justify-between px-2 border-b border-white/10 bg-white/5">
         <div className="flex items-center gap-1">
           {bottomTabs.map((tab) => (
             <button
               key={tab.id}
               className={cn(
                 'flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm',
-                'hover:bg-accent transition-colors',
+                'hover:bg-white/10 transition-colors',
                 activeBottomTab === tab.id
-                  ? 'bg-accent text-foreground'
-                  : 'text-muted-foreground'
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/50'
               )}
               onClick={() => setActiveBottomTab(tab.id)}
             >
               <tab.icon className="h-3.5 w-3.5" />
               {tab.label}
               {tab.id === 'problems' && (
-                <span className="bg-yellow-500/20 text-yellow-600 px-1 rounded text-[10px]">
+                <span className="bg-yellow-500/20 text-yellow-200 px-1 rounded text-[10px]">
                   3
                 </span>
               )}
@@ -46,14 +45,13 @@ export function BottomPanel() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-6 w-6 text-white/60"
           onClick={toggleBottomPanel}
         >
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {/* Content */}
       <ScrollArea className="flex-1">
         {activeBottomTab === 'jobs' && <JobsContent />}
         {activeBottomTab === 'problems' && <ProblemsContent />}
@@ -87,7 +85,7 @@ function JobsContent() {
       {mockJobs.map((job) => (
         <div
           key={job.id}
-          className="flex items-center gap-3 p-2 rounded-md bg-muted/30 text-sm"
+          className="flex items-center gap-3 p-2 rounded-md bg-white/5 text-sm"
         >
           <div
             className={cn(
@@ -98,15 +96,15 @@ function JobsContent() {
             )}
           />
           <div className="flex-1">
-            <p className="font-medium">{job.dataset}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="font-medium text-white/90">{job.dataset}</p>
+            <p className="text-xs text-white/50">
               {job.type} - {job.status === 'running' ? `${job.progress}%` : job.status}
             </p>
           </div>
           {job.status === 'running' && (
-            <div className="w-20 h-1 bg-muted rounded-full overflow-hidden">
+            <div className="w-20 h-1 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-primary transition-all"
+                className="h-full bg-cyan-300 transition-all"
                 style={{ width: `${job.progress}%` }}
               />
             </div>
@@ -144,7 +142,7 @@ function ProblemsContent() {
       {mockProblems.map((problem) => (
         <div
           key={problem.id}
-          className="flex items-start gap-2 p-2 rounded-md hover:bg-muted/30 text-sm cursor-pointer"
+          className="flex items-start gap-2 p-2 rounded-md hover:bg-white/5 text-sm cursor-pointer"
         >
           <AlertCircle
             className={cn(
@@ -155,8 +153,8 @@ function ProblemsContent() {
             )}
           />
           <div>
-            <p>{problem.message}</p>
-            <p className="text-xs text-muted-foreground">Column: {problem.column}</p>
+            <p className="text-white/80">{problem.message}</p>
+            <p className="text-xs text-white/50">Column: {problem.column}</p>
           </div>
         </div>
       ))}
@@ -166,7 +164,7 @@ function ProblemsContent() {
 
 function OutputContent() {
   return (
-    <div className="p-2 font-mono text-xs text-muted-foreground">
+    <div className="p-2 font-mono text-xs text-white/60">
       <p>[INFO] DataCanvas v1.0.0</p>
       <p>[INFO] Connected to workspace</p>
       <p>[INFO] Ready for dataset upload</p>
@@ -176,7 +174,7 @@ function OutputContent() {
 
 function LogsContent() {
   return (
-    <div className="p-2 font-mono text-xs text-muted-foreground">
+    <div className="p-2 font-mono text-xs text-white/60">
       <p>2024-01-15 10:30:15 - Profiler started for Titanic Dataset</p>
       <p>2024-01-15 10:30:16 - Loading file: titanic.csv</p>
       <p>2024-01-15 10:30:17 - Parsed 891 rows, 12 columns</p>

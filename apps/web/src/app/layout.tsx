@@ -1,7 +1,17 @@
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { MotionProvider } from '@/components/providers/motion-provider';
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+});
 
 export const metadata: Metadata = {
   title: 'DataCanvas - No-Code Dataset Visualizer',
@@ -15,9 +25,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`} suppressHydrationWarning>
-        {children}
+      <body
+        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
+        <MotionProvider>
+          {children}
+        </MotionProvider>
       </body>
     </html>
   );
 }
+

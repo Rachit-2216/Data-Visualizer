@@ -124,7 +124,7 @@ export default function SignupPage() {
           <Input
             id="password"
             type="password"
-            placeholder="••••••••"
+            placeholder="Enter a password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -138,7 +138,7 @@ export default function SignupPage() {
           <Input
             id="confirmPassword"
             type="password"
-            placeholder="••••••••"
+            placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required

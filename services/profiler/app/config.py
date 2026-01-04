@@ -5,6 +5,7 @@ from functools import lru_cache
 class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
+    supabase_datasets_bucket: str = "datasets"
 
     # Profiling settings
     max_sample_size: int = 50000

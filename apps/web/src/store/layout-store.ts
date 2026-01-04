@@ -6,6 +6,7 @@ interface LayoutState {
   sidebarOpen: boolean;
   sidebarWidth: number;
   activeSidebarSection: 'explorer' | 'charts' | 'profile' | 'settings';
+  sidebarCollapsedWidth: number;
 
   // Bottom panel
   bottomPanelOpen: boolean;
@@ -15,11 +16,14 @@ interface LayoutState {
   // Assistant panel
   assistantPanelOpen: boolean;
   assistantPanelWidth: number;
+  assistantDrawerExpanded: boolean;
+  assistantDrawerHeight: number;
 
   // Actions
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   setActiveSidebarSection: (section: 'explorer' | 'charts' | 'profile' | 'settings') => void;
+  setSidebarCollapsedWidth: (width: number) => void;
 
   toggleBottomPanel: () => void;
   setBottomPanelHeight: (height: number) => void;
@@ -27,6 +31,8 @@ interface LayoutState {
 
   toggleAssistantPanel: () => void;
   setAssistantPanelWidth: (width: number) => void;
+  toggleAssistantDrawer: () => void;
+  setAssistantDrawerHeight: (height: number) => void;
 }
 
 export const useLayoutStore = create<LayoutState>()(
@@ -34,7 +40,8 @@ export const useLayoutStore = create<LayoutState>()(
     (set) => ({
       // Initial state
       sidebarOpen: true,
-      sidebarWidth: 260,
+      sidebarWidth: 200,
+      sidebarCollapsedWidth: 48,
       activeSidebarSection: 'explorer',
 
       bottomPanelOpen: false,
@@ -43,11 +50,14 @@ export const useLayoutStore = create<LayoutState>()(
 
       assistantPanelOpen: true,
       assistantPanelWidth: 320,
+      assistantDrawerExpanded: false,
+      assistantDrawerHeight: 320,
 
       // Actions
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setSidebarWidth: (width) => set({ sidebarWidth: width }),
       setActiveSidebarSection: (section) => set({ activeSidebarSection: section }),
+      setSidebarCollapsedWidth: (width) => set({ sidebarCollapsedWidth: width }),
 
       toggleBottomPanel: () => set((state) => ({ bottomPanelOpen: !state.bottomPanelOpen })),
       setBottomPanelHeight: (height) => set({ bottomPanelHeight: height }),
@@ -56,16 +66,22 @@ export const useLayoutStore = create<LayoutState>()(
       toggleAssistantPanel: () =>
         set((state) => ({ assistantPanelOpen: !state.assistantPanelOpen })),
       setAssistantPanelWidth: (width) => set({ assistantPanelWidth: width }),
+      toggleAssistantDrawer: () =>
+        set((state) => ({ assistantDrawerExpanded: !state.assistantDrawerExpanded })),
+      setAssistantDrawerHeight: (height) => set({ assistantDrawerHeight: height }),
     }),
     {
       name: 'datacanvas-layout',
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         sidebarWidth: state.sidebarWidth,
+        sidebarCollapsedWidth: state.sidebarCollapsedWidth,
         bottomPanelOpen: state.bottomPanelOpen,
         bottomPanelHeight: state.bottomPanelHeight,
         assistantPanelOpen: state.assistantPanelOpen,
         assistantPanelWidth: state.assistantPanelWidth,
+        assistantDrawerExpanded: state.assistantDrawerExpanded,
+        assistantDrawerHeight: state.assistantDrawerHeight,
       }),
     }
   )

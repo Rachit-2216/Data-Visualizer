@@ -14,7 +14,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({
             request,
@@ -33,7 +33,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protected routes
-  const protectedPaths = ['/workspace', '/projects', '/dashboard'];
+  const protectedPaths = ['/dashboard'];
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
@@ -51,7 +51,7 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthPath && user) {
     const url = request.nextUrl.clone();
-    url.pathname = '/projects';
+    url.pathname = '/workspace';
     return NextResponse.redirect(url);
   }
 
