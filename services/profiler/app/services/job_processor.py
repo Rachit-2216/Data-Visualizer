@@ -1,9 +1,11 @@
 import asyncio
 import logging
-import httpx
+import io
+import polars as pl
 
 from app.services.supabase_client import get_supabase_client
 from app.core.profiler import DataProfiler
+from app.config import get_settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,6 +56,7 @@ class JobProcessor:
         version_id = version["id"]
         user_id = version["user_id"]
         file_path = version["file_path"]
+        file_type = version.get("file_type", "")
 
         logger.info(f"Processing job {job_id} for dataset version {version_id}")
 
@@ -71,19 +74,31 @@ class JobProcessor:
                 "status": "profiling"
             }).eq("id", version_id).execute()
 
-            # Download file from storage
-            # Note: In production, we'd download the actual file here
-            # For now, use demo profile
-            logger.info(f"Would download file from: {file_path}")
+            settings = get_settings()
+            bucket = settings.supabase_datasets_bucket
+            logger.info(f"Downloading file from: {bucket}/{file_path}")
+            file_bytes = supabase.storage.from_(bucket).download(file_path)
+            df = self._read_dataset(file_bytes, file_type)
 
-            # Create profiler
-            profiler = DataProfiler()
+            profiler = DataProfiler(max_sample_size=settings.max_sample_size)
 
-            # Update progress
             supabase.table("jobs").update({"progress": 50}).eq("id", job_id).execute()
 
-            # Generate profile (demo for now)
-            profile_data = profiler.create_demo_profile()
+            profile_data = profiler.profile_dataframe(df)
+            dataset_record = (
+                supabase.table("datasets")
+                .select("name")
+                .eq("id", version["dataset_id"])
+                .single()
+                .execute()
+            )
+            dataset_name = dataset_record.data["name"] if dataset_record.data else "Dataset"
+            profile_data["dataset"] = {
+                "name": dataset_name,
+                "version": version.get("version_number", 1),
+                "status": "ready",
+                "uploadedAt": version.get("created_at"),
+            }
 
             # Update progress
             supabase.table("jobs").update({"progress": 80}).eq("id", job_id).execute()
@@ -93,6 +108,7 @@ class JobProcessor:
                 "dataset_version_id": version_id,
                 "user_id": user_id,
                 "profile_json": profile_data,
+                "sample_preview_json": df.head(50).to_dicts(),
                 "warnings_json": profile_data.get("warnings", []),
             }).execute()
 
@@ -127,3 +143,18 @@ class JobProcessor:
     def stop(self):
         """Stop the polling loop."""
         self.running = False
+
+    def _read_dataset(self, file_bytes: bytes, file_type: str) -> pl.DataFrame:
+        file_type = (file_type or "").lower()
+        if "/" in file_type:
+            file_type = file_type.split("/")[-1]
+        buffer = io.BytesIO(file_bytes)
+        if file_type in ["csv", "txt"]:
+            return pl.read_csv(buffer)
+        if file_type in ["tsv"]:
+            return pl.read_csv(buffer, separator="\t")
+        if file_type in ["json", "ndjson"]:
+            return pl.read_json(buffer)
+        if file_type in ["parquet"]:
+            return pl.read_parquet(buffer)
+        raise ValueError(f"Unsupported file type: {file_type}")

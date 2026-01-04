@@ -1,6 +1,14 @@
 'use client';
 
-import { Files, BarChart3, Database, Settings, PanelLeftClose, PanelLeft } from 'lucide-react';
+import {
+  Files,
+  BarChart3,
+  Database,
+  Settings,
+  PanelLeftClose,
+  PanelLeft,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLayoutStore } from '@/store/layout-store';
@@ -18,18 +26,19 @@ export function ActivityBar() {
     setActiveSidebarSection,
     sidebarOpen,
     toggleSidebar,
+    assistantPanelOpen,
+    toggleAssistantPanel,
   } = useLayoutStore();
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="w-12 bg-sidebar border-r flex flex-col items-center py-2 gap-1">
-        {/* Toggle Sidebar */}
+      <div className="w-12 bg-[#060a12] border-r border-white/10 flex flex-col items-center py-2 gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10"
+              className="h-10 w-10 text-white/70"
               onClick={toggleSidebar}
             >
               {sidebarOpen ? (
@@ -44,9 +53,8 @@ export function ActivityBar() {
           </TooltipContent>
         </Tooltip>
 
-        <div className="w-6 h-px bg-border my-2" />
+        <div className="w-6 h-px bg-white/10 my-2" />
 
-        {/* Activity Icons */}
         {activities.map((activity) => (
           <Tooltip key={activity.id}>
             <TooltipTrigger asChild>
@@ -54,9 +62,9 @@ export function ActivityBar() {
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  'h-10 w-10 relative',
+                  'h-10 w-10 relative text-white/60',
                   activeSidebarSection === activity.id &&
-                    'text-primary before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-primary before:rounded-r'
+                    'text-cyan-200 before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-cyan-300 before:rounded-r'
                 )}
                 onClick={() => {
                   if (!sidebarOpen) {
@@ -72,18 +80,35 @@ export function ActivityBar() {
           </Tooltip>
         ))}
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Settings at bottom */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               className={cn(
-                'h-10 w-10',
-                activeSidebarSection === 'settings' && 'text-primary'
+                'h-10 w-10 text-white/60',
+                assistantPanelOpen && 'text-cyan-200'
+              )}
+              onClick={toggleAssistantPanel}
+            >
+              <Sparkles className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {assistantPanelOpen ? 'Hide Assistant' : 'Show Assistant'}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-10 w-10 text-white/60',
+                activeSidebarSection === 'settings' && 'text-cyan-200'
               )}
               onClick={() => {
                 if (!sidebarOpen) {

@@ -2,41 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
+    --background: 222 40% 6%;
+    --foreground: 210 20% 96%;
+    --card: 222 34% 9%;
+    --card-foreground: 210 20% 96%;
+    --popover: 222 34% 9%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 197 92% 56%;
+    --primary-foreground: 222 40% 6%;
+    --secondary: 223 24% 14%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 222 22% 12%;
+    --muted-foreground: 215 15% 68%;
+    --accent: 223 24% 14%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 221 83% 53%;
-    --radius: 0.5rem;
-    --chart-1: 221 83% 53%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 240 5.9% 90%;
-    --sidebar-ring: 221 83% 53%;
+    --border: 222 18% 18%;
+    --input: 222 18% 18%;
+    --ring: 197 92% 56%;
+    --radius: 0.75rem;
+    --chart-1: 197 92% 56%;
+    --chart-2: 168 74% 45%;
+    --chart-3: 34 92% 54%;
+    --chart-4: 264 76% 66%;
+    --chart-5: 336 78% 62%;
+    --sidebar-background: 222 38% 8%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 197 92% 56%;
+    --sidebar-primary-foreground: 222 40% 6%;
+    --sidebar-accent: 223 24% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 222 18% 18%;
+    --sidebar-ring: 197 92% 56%;
+
+    /* Animation timing */
+    --animation-duration-instant: 50ms;
+    --animation-duration-fast: 150ms;
+    --animation-duration-normal: 300ms;
+    --animation-duration-slow: 500ms;
+    --animation-duration-slower: 800ms;
+
+    /* Animation easing curves */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+    --spring-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --spring-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+
+    /* Spring physics values for framer-motion */
+    --spring-stiffness-snappy: 400;
+    --spring-stiffness-smooth: 100;
+    --spring-stiffness-bouncy: 300;
+    --spring-damping-snappy: 30;
+    --spring-damping-smooth: 20;
+    --spring-damping-bouncy: 15;
+
+    /* Cursor system */
+    --cursor-outer-size: 40px;
+    --cursor-inner-size: 8px;
+    --cursor-trail-count: 8;
+    --cursor-expand-scale: 1.5;
+
+    /* Magnetic effect */
+    --magnetic-strength: 0.3;
+    --magnetic-radius: 100px;
+
+    /* Parallax speeds */
+    --parallax-slow: 0.3;
+    --parallax-medium: 0.6;
+    --parallax-fast: 1;
+
+    /* Glow colors */
+    --glow-primary: rgba(56, 189, 248, 0.4);
+    --glow-primary-intense: rgba(56, 189, 248, 0.7);
+    --glow-secondary: rgba(168, 85, 247, 0.4);
+
+    /* Interactive states */
+    --tilt-max-degrees: 8deg;
+    --hover-lift: -4px;
   }
 
   .dark {
@@ -77,6 +129,13 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-space-grotesk), system-ui, -apple-system, sans-serif;
+  }
+
+  code,
+  pre {
+    font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo,
+      Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   }
 }
 
@@ -116,4 +175,242 @@
 .resize-handle:hover,
 .resize-handle[data-resize-handle-active] {
   @apply bg-primary/50;
+}
+
+/* Reduced motion - accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom cursor styles - hide default when custom cursor is active */
+.custom-cursor-active {
+  cursor: none !important;
+}
+
+.custom-cursor-active * {
+  cursor: none !important;
+}
+
+/* Cursor states via data attributes */
+[data-cursor="pointer"] {
+  cursor: none;
+}
+
+[data-cursor="text"] {
+  cursor: none;
+}
+
+[data-cursor="grab"] {
+  cursor: none;
+}
+
+/* Magnetic element base styles */
+.magnetic {
+  transition: transform var(--animation-duration-fast) var(--ease-out-expo);
+}
+
+/* 3D Tilt card styles */
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform var(--animation-duration-normal) var(--ease-out-expo);
+}
+
+.tilt-card-content {
+  transform: translateZ(20px);
+}
+
+/* Glow border effect */
+.glow-border {
+  position: relative;
+}
+
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    var(--glow-angle, 45deg),
+    transparent,
+    var(--glow-primary),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--animation-duration-normal) var(--ease-out-expo);
+  z-index: -1;
+}
+
+.glow-border:hover::before {
+  opacity: 1;
+}
+
+/* Light sweep effect for buttons */
+.light-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.light-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%) skewX(-15deg);
+}
+
+.light-sweep:hover::after {
+  animation: light-sweep 0.6s ease-out;
+}
+
+/* Ripple container */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Chromatic aberration text effect */
+.chromatic-text {
+  position: relative;
+}
+
+.chromatic-text::before,
+.chromatic-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity var(--animation-duration-fast) ease;
+}
+
+.chromatic-text::before {
+  color: #ff0000;
+  transform: translateX(-2px);
+}
+
+.chromatic-text::after {
+  color: #00ffff;
+  transform: translateX(2px);
+}
+
+.chromatic-text:hover::before,
+.chromatic-text:hover::after {
+  opacity: 0.5;
+}
+
+/* Split text animation */
+.split-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+.split-char.revealed {
+  animation: text-reveal-up var(--animation-duration-slow) var(--ease-out-expo) forwards;
+}
+
+/* Parallax layer */
+.parallax-layer {
+  will-change: transform;
+}
+
+/* Marquee container */
+.marquee-container {
+  overflow: hidden;
+  width: 100%;
+}
+
+.marquee-content {
+  display: flex;
+  animation: marquee 30s linear infinite;
+}
+
+.marquee-content:hover {
+  animation-play-state: paused;
+}
+
+/* Float animation with stagger support */
+.float-item {
+  animation: float 6s ease-in-out infinite;
+}
+
+.float-item:nth-child(2n) {
+  animation-delay: -2s;
+}
+
+.float-item:nth-child(3n) {
+  animation-delay: -4s;
+}
+
+/* Scroll progress bar */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)) var(--scroll-progress, 0%),
+    transparent var(--scroll-progress, 0%)
+  );
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* GPU acceleration helpers */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Touch ripple for mobile */
+.touch-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  pointer-events: none;
+}
+
+/* Dark Reader compatibility - prevent hydration mismatches */
+[data-darkreader-inline-stroke] {
+  --darkreader-inline-stroke: currentColor !important;
+}
+
+[data-darkreader-inline-fill] {
+  --darkreader-inline-fill: currentColor !important;
+}
+
+[data-darkreader-inline-color] {
+  --darkreader-inline-color: inherit !important;
+}
+
+[data-darkreader-inline-bgcolor] {
+  --darkreader-inline-bgcolor: transparent !important;
 }

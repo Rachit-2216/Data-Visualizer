@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Play, Square, Trash2, Download, Upload, RotateCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Play, Square, Trash2, RotateCw, Sparkles, Cpu } from 'lucide-react';
+import Editor from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -76,30 +77,39 @@ export function SandboxTab() {
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [pyodideReady, setPyodideReady] = useState(false);
+  const [status, setStatus] = useState('Idle');
+
+  useEffect(() => {
+    const id = setTimeout(() => setPyodideReady(true), 1200);
+    return () => clearTimeout(id);
+  }, []);
 
   const handleRun = async () => {
     setIsRunning(true);
     setOutput('Running...\n');
+    setStatus('Executing');
 
     // Simulate execution delay
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     setOutput(mockOutput);
     setIsRunning(false);
+    setStatus('Complete');
   };
 
   const handleClear = () => {
     setOutput('');
+    setStatus('Idle');
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#080c16]">
       {/* Toolbar */}
-      <div className="h-10 border-b flex items-center justify-between px-4 bg-muted/30">
+      <div className="h-12 border-b border-white/10 flex items-center justify-between px-4 bg-white/5">
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="gap-1 h-7"
+            className="gap-1 h-8"
             onClick={handleRun}
             disabled={isRunning}
           >
@@ -118,69 +128,83 @@ export function SandboxTab() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 h-7"
+            className="gap-1 h-8"
             onClick={handleClear}
           >
             <Trash2 className="h-3.5 w-3.5" />
             Clear
           </Button>
-          <Button variant="outline" size="sm" className="gap-1 h-7">
+          <Button variant="outline" size="sm" className="gap-1 h-8" onClick={() => setCode(defaultCode)}>
             <RotateCw className="h-3.5 w-3.5" />
             Reset
           </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {pyodideReady ? (
-              <span className="text-green-600">Pyodide Ready</span>
-            ) : (
-              <span className="text-yellow-600">Loading Pyodide...</span>
-            )}
-          </span>
+        <div className="flex items-center gap-4 text-xs text-white/60">
+          <div className="flex items-center gap-2">
+            <Cpu className="h-3.5 w-3.5 text-cyan-300" />
+            <span>{pyodideReady ? 'Pyodide Ready' : 'Loading Pyodide...'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            <span>{status}</span>
+          </div>
         </div>
       </div>
 
       {/* Main content */}
       <div className="flex-1 flex">
         {/* Code editor */}
-        <div className="flex-1 flex flex-col border-r">
-          <div className="h-8 border-b flex items-center px-3 bg-muted/30">
-            <span className="text-xs font-medium text-muted-foreground">
-              sandbox.py
+        <div className="flex-1 flex flex-col border-r border-white/10">
+          <div className="h-9 border-b border-white/10 flex items-center px-3 bg-white/5">
+            <span className="text-xs font-medium text-white/70">sandbox.py</span>
+            <span className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40">
+              Python
             </span>
           </div>
-          <div className="flex-1 relative">
-            <textarea
+          <div className="flex-1">
+            <Editor
+              height="100%"
+              defaultLanguage="python"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="absolute inset-0 w-full h-full p-4 font-mono text-sm bg-background resize-none focus:outline-none"
-              spellCheck={false}
+              onChange={(value) => setCode(value ?? '')}
+              theme="vs-dark"
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                fontFamily: 'var(--font-jetbrains-mono), monospace',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+              }}
             />
           </div>
         </div>
 
         {/* Output panel */}
-        <div className="w-[400px] flex flex-col">
-          <div className="h-8 border-b flex items-center px-3 bg-muted/30">
-            <span className="text-xs font-medium text-muted-foreground">
-              Output
+        <div className="w-[420px] flex flex-col">
+          <div className="h-9 border-b border-white/10 flex items-center px-3 bg-white/5">
+            <span className="text-xs font-medium text-white/70">Output</span>
+            <span className="ml-auto text-[10px] uppercase tracking-[0.2em] text-white/40">
+              Console
             </span>
           </div>
           <ScrollArea className="flex-1">
-            <pre className="p-4 font-mono text-xs whitespace-pre-wrap">
+            <pre className="p-4 font-mono text-xs whitespace-pre-wrap text-white/80">
               {output || 'Run your code to see output here...'}
             </pre>
           </ScrollArea>
 
           {/* Detected metrics */}
           {output && (
-            <div className="border-t p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-2">
+            <div className="border-t border-white/10 p-3">
+              <p className="text-xs font-medium text-white/60 mb-2">
                 Detected Metrics
               </p>
               <div className="flex flex-wrap gap-2">
-                <div className="px-2 py-1 rounded-md bg-green-500/10 text-green-600 text-xs">
+                <div className="px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-200 text-xs">
                   Accuracy: 78.77%
+                </div>
+                <div className="px-2 py-1 rounded-md bg-cyan-500/10 text-cyan-200 text-xs">
+                  F1: 0.74
                 </div>
               </div>
             </div>

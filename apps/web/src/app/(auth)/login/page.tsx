@@ -19,6 +19,13 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required');
+      setLoading(false);
+      return;
+    }
+
+
     const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -73,7 +80,7 @@ export default function LoginPage() {
           <Input
             id="password"
             type="password"
-            placeholder="••••••••"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
