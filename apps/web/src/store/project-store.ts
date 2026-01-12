@@ -4,7 +4,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@/lib/supabase/client';
 import { demoProject, type DemoProject } from '@/lib/demo-data';
-import { apiJson } from '@/lib/api-client';
+import { apiClient, ApiError, type ApiProject } from '@/lib/api-client';
+import { isUuid } from '@/lib/utils';
 
 export type Project = DemoProject & {
   isProtected?: boolean;
@@ -15,12 +16,14 @@ type ProjectState = {
   currentProjectId: string | null;
   isLoading: boolean;
   isCreateModalOpen: boolean;
+  error: string | null;
   fetchProjects: () => Promise<void>;
   createProject: (name: string) => Promise<Project | null>;
   deleteProject: (projectId: string) => Promise<void>;
   selectProject: (projectId: string) => void;
   openCreateModal: () => void;
   closeCreateModal: () => void;
+  clearError: () => void;
   reset: () => void;
 };
 
@@ -34,6 +37,20 @@ const ensureDemoProject = (projects: Project[]) => {
   return [{ ...demoProject, isProtected: true }, ...projects];
 };
 
+const withDemoFallback = (projects: Project[]) => {
+  if (projects.some((project) => project.isProtected)) {
+    return projects;
+  }
+  return ensureDemoProject(projects);
+};
+
+const mapRemoteProject = (project: ApiProject): Project => ({
+  id: project.id,
+  name: project.name,
+  createdAt: project.created_at,
+  isProtected: project.is_demo,
+});
+
 const generateId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -44,6 +61,7 @@ const initialState = {
   currentProjectId: demoProject.id,
   isLoading: false,
   isCreateModalOpen: false,
+  error: null,
 };
 
 export const useProjectStore = create<ProjectState>()(
@@ -51,7 +69,7 @@ export const useProjectStore = create<ProjectState>()(
     (set, get) => ({
       ...initialState,
       fetchProjects: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const supabase = createClient();
           const {
@@ -59,20 +77,15 @@ export const useProjectStore = create<ProjectState>()(
           } = await supabase.auth.getUser();
 
           if (user) {
-            const response = await apiJson<{ projects: Array<{ id: string; name: string; created_at: string }> }>(
-              '/api/projects'
-            );
-            const remoteProjects: Project[] = response.projects.map((project) => ({
-              id: project.id,
-              name: project.name,
-              createdAt: project.created_at,
-            }));
-            const merged = ensureDemoProject(remoteProjects);
+            const response = await apiClient.getProjects();
+            const remoteProjects = (response.projects ?? []).map(mapRemoteProject);
+            const merged = withDemoFallback(remoteProjects);
             const current = get().currentProjectId;
+            const firstRemote = merged.find((project) => isUuid(project.id))?.id;
             const activeId =
-              current && merged.some((project) => project.id === current)
+              current && merged.some((project) => project.id === current) && isUuid(current)
                 ? current
-                : merged[0]?.id ?? demoProject.id;
+                : firstRemote ?? merged[0]?.id ?? demoProject.id;
             set({ projects: merged, currentProjectId: activeId });
           } else {
             const merged = ensureDemoProject(get().projects);
@@ -83,6 +96,10 @@ export const useProjectStore = create<ProjectState>()(
                 : merged[0]?.id ?? demoProject.id;
             set({ projects: merged, currentProjectId: activeId });
           }
+        } catch (error) {
+          const message =
+            error instanceof ApiError ? error.message : 'Failed to load projects';
+          set({ error: message });
         } finally {
           set({ isLoading: false });
         }
@@ -99,24 +116,21 @@ export const useProjectStore = create<ProjectState>()(
         } = await supabase.auth.getUser();
 
         if (user) {
-          const response = await apiJson<{ project: { id: string; name: string; created_at: string } }>(
-            '/api/projects',
-            {
-              method: 'POST',
-              body: JSON.stringify({ name: trimmedName }),
-            }
-          );
-          const created: Project = {
-            id: response.project.id,
-            name: response.project.name,
-            createdAt: response.project.created_at,
-          };
-          set((state) => ({
-            projects: ensureDemoProject([...state.projects, created]),
-            currentProjectId: created.id,
-            isCreateModalOpen: false,
-          }));
-          return created;
+          try {
+            const response = await apiClient.createProject({ name: trimmedName });
+            const created = mapRemoteProject(response.project);
+            set((state) => ({
+              projects: withDemoFallback([...state.projects, created]),
+              currentProjectId: created.id,
+              isCreateModalOpen: false,
+            }));
+            return created;
+          } catch (error) {
+            const message =
+              error instanceof ApiError ? error.message : 'Failed to create project';
+            set({ error: message });
+            return null;
+          }
         }
 
         const created: Project = {
@@ -143,7 +157,14 @@ export const useProjectStore = create<ProjectState>()(
         } = await supabase.auth.getUser();
 
         if (user) {
-          await apiJson(`/api/projects/${projectId}`, { method: 'DELETE' });
+          try {
+            await apiClient.deleteProject(projectId);
+          } catch (error) {
+            const message =
+              error instanceof ApiError ? error.message : 'Failed to delete project';
+            set({ error: message });
+            return;
+          }
         }
 
         set((state) => {
@@ -167,6 +188,9 @@ export const useProjectStore = create<ProjectState>()(
       },
       closeCreateModal: () => {
         set({ isCreateModalOpen: false });
+      },
+      clearError: () => {
+        set({ error: null });
       },
       reset: () => {
         set({ ...initialState });

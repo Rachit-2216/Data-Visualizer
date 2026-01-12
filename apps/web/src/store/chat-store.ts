@@ -25,7 +25,7 @@ type ChatState = {
   suggestions: string[];
   isStreaming: boolean;
   error: string | null;
-  startConversation: (title?: string) => string;
+  startConversation: (title?: string, id?: string) => string;
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: ChatMessage) => void;
   updateMessage: (conversationId: string, messageId: string, patch: Partial<ChatMessage>) => void;
@@ -59,19 +59,19 @@ export const useChatStore = create<ChatState>()(
       suggestions: [],
       isStreaming: false,
       error: null,
-      startConversation: (title = 'New chat') => {
-        const id = generateId();
+      startConversation: (title = 'New chat', id?: string) => {
+        const nextId = id ?? generateId();
         const conversation: ChatConversation = {
-          id,
+          id: nextId,
           title,
           createdAt: new Date().toISOString(),
         };
         set((state) => ({
           conversations: [conversation, ...state.conversations],
-          activeConversationId: id,
-          messagesByConversation: { ...state.messagesByConversation, [id]: [] },
+          activeConversationId: nextId,
+          messagesByConversation: { ...state.messagesByConversation, [nextId]: [] },
         }));
-        return id;
+        return nextId;
       },
       setActiveConversation: (id) => set({ activeConversationId: id }),
       addMessage: (conversationId, message) => {

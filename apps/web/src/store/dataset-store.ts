@@ -4,7 +4,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@/lib/supabase/client';
 import { demoDatasets, type DemoDataset, type DatasetColumn, type DatasetProfile } from '@/lib/demo-data';
-import { apiJson, apiUpload } from '@/lib/api-client';
+import { apiClient, ApiError, type ApiDatasetVersion } from '@/lib/api-client';
+import { isUuid } from '@/lib/utils';
 
 export type Dataset = DemoDataset & {
   projectId: string;
@@ -19,6 +20,7 @@ type DatasetState = {
   uploadProgress: number;
   isLoading: boolean;
   isUploadModalOpen: boolean;
+  error: string | null;
   fetchDatasets: (projectId: string) => Promise<void>;
   uploadDataset: (file: File, projectId: string) => Promise<Dataset | null>;
   deleteDataset: (datasetId: string, projectId: string) => Promise<void>;
@@ -26,6 +28,7 @@ type DatasetState = {
   fetchDatasetProfile: (datasetId: string, versionId: string) => Promise<void>;
   openUploadModal: () => void;
   closeUploadModal: () => void;
+  clearError: () => void;
   reset: () => void;
 };
 
@@ -130,6 +133,12 @@ const initialState = {
   uploadProgress: 0,
   isLoading: false,
   isUploadModalOpen: false,
+  error: null,
+};
+
+const getLatestVersion = (versions: ApiDatasetVersion[] | undefined) => {
+  if (!versions || versions.length === 0) return null;
+  return [...versions].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? '')).pop() ?? null;
 };
 
 export const useDatasetStore = create<DatasetState>()(
@@ -137,8 +146,21 @@ export const useDatasetStore = create<DatasetState>()(
     (set, get) => ({
       ...initialState,
       fetchDatasets: async (projectId: string) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
+          if (!isUuid(projectId)) {
+            const demoSet = demoDatasets[projectId];
+            if (demoSet) {
+              set((state) => ({
+                datasetsByProject: { ...state.datasetsByProject, [projectId]: demoSet },
+                currentDatasetId: state.currentDatasetId ?? demoSet[0]?.id ?? null,
+                currentDatasetVersionId:
+                  state.currentDatasetVersionId ??
+                  (demoSet[0]?.id ? `${demoSet[0]?.id}-v1` : null),
+              }));
+            }
+            return;
+          }
           const supabase = createClient();
           const {
             data: { user },
@@ -158,28 +180,22 @@ export const useDatasetStore = create<DatasetState>()(
             return;
           }
 
-          const response = await apiJson<{ datasets: Array<{ id: string; name: string; created_at: string; project_id: string }> }>(
-            `/api/projects/${projectId}/datasets`
-          );
-          const remoteDatasets: Dataset[] = await Promise.all(
-            response.datasets.map(async (dataset) => {
-              const versionsResponse = await apiJson<{ versions: Array<{ id: string; row_count_est: number | null; column_count_est: number | null; created_at: string }> }>(
-                `/api/datasets/${dataset.id}/versions`
-              );
-              const latest = versionsResponse.versions?.[versionsResponse.versions.length - 1];
-              return {
-                id: dataset.id,
-                projectId: dataset.project_id,
-                name: dataset.name,
-                createdAt: dataset.created_at,
-                rowCount: latest?.row_count_est ?? 0,
-                columns: [],
-                sampleRows: [],
-                profile: null as unknown as DatasetProfile,
-                versionId: latest?.id ?? null,
-              };
-            })
-          );
+          const response = await apiClient.listProjectDatasets(projectId);
+          const remoteDatasets: Dataset[] = (response.datasets ?? []).map((dataset) => {
+            const latest = getLatestVersion(dataset.dataset_versions);
+            const rowCount = latest?.row_count ?? latest?.row_count_est ?? 0;
+            return {
+              id: dataset.id,
+              projectId: dataset.project_id,
+              name: dataset.name,
+              createdAt: dataset.created_at,
+              rowCount,
+              columns: [],
+              sampleRows: [],
+              profile: null as unknown as DatasetProfile,
+              versionId: latest?.id ?? null,
+            };
+          });
 
           const merged = demoDatasets[projectId]
             ? demoDatasets[projectId].concat(remoteDatasets)
@@ -191,12 +207,16 @@ export const useDatasetStore = create<DatasetState>()(
             currentDatasetId: nextDatasetId,
             currentDatasetVersionId: currentDataset?.versionId ?? state.currentDatasetVersionId ?? null,
           }));
+        } catch (error) {
+          const message =
+            error instanceof ApiError ? error.message : 'Failed to load datasets';
+          set({ error: message });
         } finally {
           set({ isLoading: false });
         }
       },
       uploadDataset: async (file: File, projectId: string) => {
-        set({ uploadProgress: 0, isLoading: true });
+        set({ uploadProgress: 0, isLoading: true, error: null });
 
         const progressTimer = window.setInterval(() => {
           set((state) => ({
@@ -232,28 +252,31 @@ export const useDatasetStore = create<DatasetState>()(
         } = await supabase.auth.getUser();
 
         let jobId: string | null = null;
-        if (user) {
-          const createdDataset = await apiJson<{ dataset: { id: string; created_at: string } }>(
-            `/api/projects/${projectId}/datasets`,
-            {
-              method: 'POST',
-              body: JSON.stringify({ name: dataset.name }),
-            }
-          );
-          dataset = {
-            ...dataset,
-            id: createdDataset.dataset.id,
-            createdAt: createdDataset.dataset.created_at,
-          };
+        if (user && isUuid(projectId)) {
+          try {
+            const extension = file.name.split('.').pop()?.toLowerCase() || 'csv';
+            const fileType = ['csv', 'json', 'parquet', 'tsv', 'xlsx'].includes(extension)
+              ? extension
+              : 'csv';
+            const createdDataset = await apiClient.createDataset(projectId, {
+              name: dataset.name,
+              file_type: fileType,
+              original_filename: file.name,
+            });
+            dataset = {
+              ...dataset,
+              id: createdDataset.dataset.id,
+              createdAt: createdDataset.dataset.created_at,
+            };
 
-          const formData = new FormData();
-          formData.append('file', file);
-          const uploadResponse = await apiUpload<{ dataset_version_id: string; job_id: string }>(
-            `/api/datasets/${dataset.id}/upload`,
-            formData
-          );
-          dataset.versionId = uploadResponse.dataset_version_id;
-          jobId = uploadResponse.job_id;
+            const uploadResponse = await apiClient.uploadDataset(dataset.id, file);
+            dataset.versionId = uploadResponse.dataset_version_id;
+            jobId = uploadResponse.job_id;
+          } catch (error) {
+            const message =
+              error instanceof ApiError ? error.message : 'Failed to upload dataset';
+            set({ error: message });
+          }
         }
 
         window.clearInterval(progressTimer);
@@ -276,7 +299,7 @@ export const useDatasetStore = create<DatasetState>()(
         if (user && jobId && dataset.versionId) {
           const pollJob = async () => {
             try {
-              const job = await apiJson<{ job: { status: string } }>(`/api/jobs/${jobId}`);
+              const job = await apiClient.getJob(jobId);
               if (job.job?.status === 'done') {
                 await get().fetchDatasetProfile(dataset.id, dataset.versionId ?? '');
                 await get().fetchDatasets(projectId);
@@ -308,8 +331,15 @@ export const useDatasetStore = create<DatasetState>()(
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (user) {
-          await apiJson(`/api/datasets/${datasetId}`, { method: 'DELETE' });
+        if (user && isUuid(datasetId)) {
+          try {
+            await apiClient.requestJson(`/api/datasets/${datasetId}`, { method: 'DELETE' });
+          } catch (error) {
+            const message =
+              error instanceof ApiError ? error.message : 'Failed to delete dataset';
+            set({ error: message });
+            return;
+          }
         }
 
         set((state) => {
@@ -344,38 +374,45 @@ export const useDatasetStore = create<DatasetState>()(
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (!user) return;
-        const response = await apiJson<{ profile: { profile_json: any; sample_preview_json: Array<Record<string, unknown>> } | null }>(
-          `/api/datasets/versions/${versionId}/profile`
-        );
-        if (!response.profile) return;
-        const normalized = normalizeProfile(response.profile.profile_json);
-        set((state) => {
-          const next = { ...state.datasetsByProject };
-          Object.keys(next).forEach((projectKey) => {
-            next[projectKey] = next[projectKey].map((item) => {
-              if (item.id !== datasetId) return item;
-              return {
-                ...item,
-                profile: normalized,
-                sampleRows: response.profile?.sample_preview_json ?? [],
-                columns:
-                  response.profile?.profile_json?.schema?.columns?.map((col: any) => ({
-                    name: col.name,
-                    type: col.inferred_type ?? 'text',
-                  })) ?? item.columns,
-                rowCount: normalized.stats.rowCount ?? item.rowCount,
-              };
+        if (!user || !isUuid(datasetId) || !isUuid(versionId)) return;
+        try {
+          const response = await apiClient.getProfile(versionId);
+          if (!response.profile) return;
+          const normalized = normalizeProfile(response.profile.profile_json);
+          set((state) => {
+            const next = { ...state.datasetsByProject };
+            Object.keys(next).forEach((projectKey) => {
+              next[projectKey] = next[projectKey].map((item) => {
+                if (item.id !== datasetId) return item;
+                return {
+                  ...item,
+                  profile: normalized,
+                  sampleRows: response.profile?.sample_preview_json ?? [],
+                  columns:
+                    response.profile?.profile_json?.schema?.columns?.map((col: any) => ({
+                      name: col.name,
+                      type: col.inferred_type ?? 'text',
+                    })) ?? item.columns,
+                  rowCount: normalized.stats.rowCount ?? item.rowCount,
+                };
+              });
             });
+            return { datasetsByProject: next };
           });
-          return { datasetsByProject: next };
-        });
+        } catch (error) {
+          const message =
+            error instanceof ApiError ? error.message : 'Failed to load profile';
+          set({ error: message });
+        }
       },
       openUploadModal: () => {
         set({ isUploadModalOpen: true });
       },
       closeUploadModal: () => {
         set({ isUploadModalOpen: false });
+      },
+      clearError: () => {
+        set({ error: null });
       },
       reset: () => {
         set({ ...initialState });
