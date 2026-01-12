@@ -15,6 +15,7 @@ import { presetTemplates, baseExamples } from '@/components/codeviz/preset-templ
 import { VisualizationCanvas } from '@/components/codeviz/legacy-visuals';
 import { apiJson } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
+import { isUuid } from '@/lib/utils';
 
 const vizTypes: Array<{ id: ModelType; name: string; desc: string }> = [
   { id: 'neural', name: 'Neural Network', desc: 'PyTorch / Keras models' },
@@ -66,6 +67,9 @@ function getDatasetDefaults(dataset?: {
 export function CodeVizTab() {
   const { currentProjectId, datasetsByProject, currentDatasetId, currentDatasetVersionId } =
     useDatasetStore();
+  const datasetVersionId = isUuid(currentDatasetVersionId)
+    ? currentDatasetVersionId ?? undefined
+    : undefined;
   const dataset = currentProjectId
     ? (datasetsByProject[currentProjectId] ?? []).find((item) => item.id === currentDatasetId)
     : undefined;
@@ -101,7 +105,7 @@ export function CodeVizTab() {
           method: 'POST',
           body: JSON.stringify({
             kind: modelType,
-            dataset_version_id: currentDatasetVersionId ?? undefined,
+            dataset_version_id: datasetVersionId,
           }),
         })
           .then((data) => setVizData(data))
@@ -114,7 +118,7 @@ export function CodeVizTab() {
     setVizData(null);
   }, [
     activePreset,
-    currentDatasetVersionId,
+    datasetVersionId,
     inputSize,
     modelType,
     outputSize,

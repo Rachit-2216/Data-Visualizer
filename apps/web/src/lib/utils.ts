@@ -26,3 +26,10 @@ export function truncate(str: string, length: number) {
   if (str.length <= length) return str;
   return str.slice(0, length) + '...';
 }
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isUuid(value?: string | null) {
+  if (!value) return false;
+  return uuidRegex.test(value);
+}

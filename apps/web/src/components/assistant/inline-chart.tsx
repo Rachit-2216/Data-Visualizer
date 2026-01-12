@@ -11,6 +11,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useVisualsStore } from '@/store/visuals-store';
+import { useProjectStore } from '@/store/project-store';
+import { useDatasetStore } from '@/store/dataset-store';
+import { isUuid } from '@/lib/utils';
 
 const VegaLite = dynamic(() => import('react-vega').then((mod) => mod.VegaLite), {
   ssr: false,
@@ -19,6 +22,8 @@ const VegaLite = dynamic(() => import('react-vega').then((mod) => mod.VegaLite),
 export function InlineChart({ spec, title }: { spec: Record<string, unknown>; title?: string }) {
   const [expanded, setExpanded] = useState(false);
   const { addChart } = useVisualsStore();
+  const { currentProjectId } = useProjectStore();
+  const { currentDatasetVersionId } = useDatasetStore();
 
   const interactiveSpec = useMemo(() => {
     const next = JSON.parse(JSON.stringify(spec)) as Record<string, any>;
@@ -59,7 +64,16 @@ export function InlineChart({ spec, title }: { spec: Record<string, unknown>; ti
             size="sm"
             variant="ghost"
             className="h-7 gap-1"
-            onClick={() => addChart(safeTitle, spec)}
+            onClick={() =>
+              void addChart(safeTitle, spec, {
+                projectId: currentProjectId ?? undefined,
+                datasetVersionId:
+                  currentDatasetVersionId && isUuid(currentDatasetVersionId)
+                    ? currentDatasetVersionId
+                    : null,
+                chartType: 'assistant',
+              })
+            }
           >
             <Plus className="h-3.5 w-3.5" />
             Add to Visuals

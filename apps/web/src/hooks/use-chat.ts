@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { apiJson } from '@/lib/api-client';
+import { apiClient, ApiError } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useChatStore, type ChatMessage } from '@/store/chat-store';
 import { useProjectStore } from '@/store/project-store';
 import { useDatasetStore } from '@/store/dataset-store';
+import { isUuid } from '@/lib/utils';
 import type { ChatRequestPayload, StreamEvent } from '@/lib/gemini/types';
 
 const decoder = new TextDecoder();
@@ -69,12 +69,11 @@ export function useChat() {
     setSuggestions,
     setStreaming,
     setError,
-    resetConversation,
     setActiveConversation,
     setConversations,
   } = useChatStore();
   const { currentProjectId } = useProjectStore();
-  const { datasetsByProject, currentDatasetId } = useDatasetStore();
+  const { datasetsByProject, currentDatasetId, currentDatasetVersionId } = useDatasetStore();
 
   const activeMessages = activeConversationId
     ? messagesByConversation[activeConversationId] ?? []
@@ -97,26 +96,6 @@ export function useChat() {
     refreshSuggestions();
   }, [refreshSuggestions]);
 
-  const ensureConversationInSupabase = useCallback(
-    async (conversationId: string, title: string) => {
-      if (!user) return;
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('id', conversationId)
-        .maybeSingle();
-      if (!data) {
-        await supabase.from('conversations').insert({
-          id: conversationId,
-          user_id: user.id,
-          title,
-        });
-      }
-    },
-    [user]
-  );
-
   const sendMessage = useCallback(
     async (message: string) => {
       const trimmed = message.trim();
@@ -124,10 +103,36 @@ export function useChat() {
 
       setError(null);
       setStreaming(true);
-      if (!activeConversationId) {
-        startConversation('New chat');
+      const datasetVersionId =
+        currentDatasetVersionId && isUuid(currentDatasetVersionId)
+          ? currentDatasetVersionId
+          : undefined;
+
+      let conversationId = activeConversationId;
+      if (!conversationId) {
+        if (user) {
+          if (!currentProjectId || !isUuid(currentProjectId)) {
+            setError('Select a project to start a conversation.');
+            setStreaming(false);
+            return;
+          }
+          try {
+            const created = await apiClient.createConversation({
+              project_id: currentProjectId,
+              dataset_version_id: datasetVersionId,
+            });
+            conversationId = startConversation(trimmed.slice(0, 60) || 'New chat', created.conversation.id);
+          } catch (error) {
+            const message =
+              error instanceof ApiError ? error.message : 'Failed to start conversation';
+            setError(message);
+            setStreaming(false);
+            return;
+          }
+        } else {
+          conversationId = startConversation('New chat');
+        }
       }
-      const conversationId = activeConversationId ?? startConversation('New chat');
 
       const userMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
@@ -149,46 +154,45 @@ export function useChat() {
         status: 'streaming',
       });
 
-      const payload: ChatRequestPayload = {
-        message: trimmed,
-        datasetContext: toDatasetContext(activeDataset),
-        conversationId,
-        model: 'gemini-2.0-flash',
-        history: (messagesByConversation[conversationId] ?? [])
-          .filter((msg) => msg.role !== 'assistant' || msg.content)
-          .slice(-8)
-          .map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-      };
-
-      if (user) {
-        await ensureConversationInSupabase(conversationId, trimmed.slice(0, 60));
-        const supabase = createClient();
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          user_id: user.id,
-          role: 'user',
-          content: trimmed,
-        });
-      }
-
       try {
         if (user) {
-          const backend = await apiJson<{ response: string }>('/api/chat', {
-            method: 'POST',
-            body: JSON.stringify({
-              message: trimmed,
-              dataset_context: toDatasetContext(activeDataset),
-            }),
-          });
-          assistantContent = backend.response;
+          for await (const chunk of apiClient.chatStream(
+            conversationId,
+            trimmed,
+            datasetVersionId
+          )) {
+            if (chunk.type === 'text') {
+              assistantContent += chunk.content ?? '';
+              updateMessage(conversationId, assistantId, {
+                content: assistantContent,
+                status: 'streaming',
+              });
+            } else if (chunk.type === 'chart') {
+              assistantChartSpec = (chunk.spec as Record<string, unknown>) ?? null;
+            } else if (chunk.type === 'error') {
+              throw new Error(chunk.message ?? 'Failed to stream response');
+            }
+          }
+
           updateMessage(conversationId, assistantId, {
             content: assistantContent,
+            chartSpec: assistantChartSpec,
             status: 'done',
           });
         } else {
+          const payload: ChatRequestPayload = {
+            message: trimmed,
+            datasetContext: toDatasetContext(activeDataset),
+            conversationId,
+            model: 'gemini-2.0-flash',
+            history: (messagesByConversation[conversationId] ?? [])
+              .filter((msg) => msg.role !== 'assistant' || msg.content)
+              .slice(-8)
+              .map((msg) => ({
+                role: msg.role,
+                content: msg.content,
+              })),
+          };
           const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -250,17 +254,6 @@ export function useChat() {
             }
           }
         }
-
-        if (user && assistantContent) {
-          const supabase = createClient();
-          await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            user_id: user.id,
-            role: 'assistant',
-            content: assistantContent,
-            tool_payload: assistantChartSpec,
-          });
-        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Failed to stream response';
@@ -276,9 +269,10 @@ export function useChat() {
     },
     [
       activeConversationId,
-      activeDataset,
       addMessage,
-      ensureConversationInSupabase,
+      currentDatasetVersionId,
+      currentProjectId,
+      activeDataset,
       messagesByConversation,
       refreshSuggestions,
       setError,
@@ -294,44 +288,46 @@ export function useChat() {
       refreshSuggestions();
       return;
     }
-    const supabase = createClient();
-    const { data: conversationsData } = await supabase
-      .from('conversations')
-      .select('id, title, created_at')
-      .order('created_at', { ascending: false });
+    try {
+      const response = await apiClient.getConversations();
+      const mappedConversations = (response.conversations ?? []).map((conv) => ({
+        id: conv.id,
+        title: conv.title ?? 'Conversation',
+        createdAt: conv.created_at,
+      }));
+      if (!mappedConversations.length) {
+        refreshSuggestions();
+        return;
+      }
+      setConversations(mappedConversations);
 
-    if (!conversationsData?.length) {
+      const conv = mappedConversations[0];
+      const messagesResponse = await apiClient.getMessages(conv.id);
+      const messages = (messagesResponse.messages ?? []).map((msg) => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        createdAt: msg.created_at,
+        chartSpec: msg.chart_spec ?? null,
+        status: 'done' as const,
+      }));
+
+      replaceMessages(conv.id, messages);
+      setActiveConversation(conv.id);
       refreshSuggestions();
-      return;
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : 'Failed to load conversations';
+      setError(message);
     }
-
-    const mappedConversations = conversationsData.map((conv) => ({
-      id: conv.id,
-      title: conv.title ?? 'Conversation',
-      createdAt: conv.created_at,
-    }));
-    setConversations(mappedConversations);
-
-    const conv = mappedConversations[0];
-    const { data: messagesData } = await supabase
-      .from('messages')
-      .select('id, role, content, created_at, tool_payload, conversation_id')
-      .eq('conversation_id', conv.id)
-      .order('created_at', { ascending: true });
-
-    const messages = (messagesData ?? []).map((msg) => ({
-      id: msg.id,
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content,
-      createdAt: msg.created_at,
-      chartSpec: (msg.tool_payload as Record<string, unknown>) ?? null,
-      status: 'done' as const,
-    }));
-
-    replaceMessages(conv.id, messages);
-    setActiveConversation(conv.id);
-    refreshSuggestions();
-  }, [refreshSuggestions, replaceMessages, setActiveConversation, setConversations, user]);
+  }, [
+    refreshSuggestions,
+    replaceMessages,
+    setActiveConversation,
+    setConversations,
+    setError,
+    user,
+  ]);
 
   return {
     conversations,

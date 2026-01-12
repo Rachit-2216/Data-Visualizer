@@ -9,3 +9,7 @@ python-dotenv==1.0.0
 polars==0.20.3
 numpy==1.26.3
 google-generativeai==0.7.2
+PyJWT==2.8.0
+websockets==12.0
+pytest==7.4.4
+cryptography==42.0.5

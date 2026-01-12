@@ -5,52 +5,35 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createClient } from '@/lib/supabase/client';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function SignupPage() {
   const router = useRouter();
+  const { signUp, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    clearError();
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      setLoading(false);
       return;
     }
-
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
+    try {
+      await signUp(email, password, {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      });
+      setSuccess(true);
+    } catch {
+      // Error already handled by store.
     }
-
-    setSuccess(true);
-    setLoading(false);
   };
 
   if (success) {
@@ -112,7 +95,10 @@ export default function SignupPage() {
             type="email"
             placeholder="you@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              clearError();
+              setEmail(e.target.value);
+            }}
             required
           />
         </div>
@@ -126,7 +112,10 @@ export default function SignupPage() {
             type="password"
             placeholder="Enter a password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              clearError();
+              setPassword(e.target.value);
+            }}
             required
           />
         </div>
@@ -140,13 +129,16 @@ export default function SignupPage() {
             type="password"
             placeholder="Confirm your password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              clearError();
+              setConfirmPassword(e.target.value);
+            }}
             required
           />
         </div>
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Creating account...' : 'Create account'}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Creating account...' : 'Create account'}
         </Button>
       </form>
 

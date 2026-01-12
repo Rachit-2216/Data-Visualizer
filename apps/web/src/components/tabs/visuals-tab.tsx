@@ -20,6 +20,8 @@ import { InteractiveChartWrapper } from '@/components/charts/interactive-chart-w
 import { useDatasetStore } from '@/store/dataset-store';
 import { useAuthStore } from '@/store/auth-store';
 import { apiJson } from '@/lib/api-client';
+import { useProjectStore } from '@/store/project-store';
+import { isUuid } from '@/lib/utils';
 
 type ChartType =
   | 'bar'
@@ -363,15 +365,19 @@ export function VisualsTab() {
   const [activeSection, setActiveSection] = useState(chartCatalog[0].id);
   const activeGroup = chartCatalog.find((group) => group.id === activeSection) ?? chartCatalog[0];
   const filteredCharts = useMemo(() => activeGroup.charts, [activeGroup]);
-  const [savedCharts, setSavedCharts] = useState<Record<string, boolean>>({});
-  const { savedCharts: assistantCharts } = useVisualsStore();
+  const { savedCharts, addChart, fetchSavedCharts } = useVisualsStore();
   const { sendMessage } = useChat();
   const { currentDatasetVersionId } = useDatasetStore();
+  const { currentProjectId } = useProjectStore();
   const { user } = useAuthStore();
   const [backendCharts, setBackendCharts] = useState<Array<{ key: string; spec: Record<string, unknown> }>>([]);
+  const savedTitles = useMemo(
+    () => new Set(savedCharts.map((chart) => chart.title)),
+    [savedCharts]
+  );
 
   useEffect(() => {
-    if (!user || !currentDatasetVersionId) {
+    if (!user || !currentDatasetVersionId || !isUuid(currentDatasetVersionId)) {
       setBackendCharts([]);
       return;
     }
@@ -382,8 +388,21 @@ export function VisualsTab() {
       .catch(() => setBackendCharts([]));
   }, [activeSection, currentDatasetVersionId, user]);
 
-  const toggleSaved = (chart: ChartDef) => {
-    setSavedCharts((prev) => ({ ...prev, [chart.id]: !prev[chart.id] }));
+  useEffect(() => {
+    if (!user || !currentProjectId || !isUuid(currentProjectId)) return;
+    fetchSavedCharts(currentProjectId);
+  }, [currentProjectId, fetchSavedCharts, user]);
+
+  const handleSave = (chart: ChartDef, spec?: Record<string, unknown>) => {
+    if (!spec) return;
+    void addChart(chart.title, spec, {
+      projectId: currentProjectId ?? undefined,
+      datasetVersionId:
+        currentDatasetVersionId && isUuid(currentDatasetVersionId)
+          ? currentDatasetVersionId
+          : null,
+      chartType: chart.type,
+    });
   };
 
   return (
@@ -417,7 +436,7 @@ export function VisualsTab() {
 
       <ScrollArea className="flex-1 bg-[#0a0f1a]">
         <div className="p-6">
-          {assistantCharts.length > 0 && (
+          {savedCharts.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -426,7 +445,7 @@ export function VisualsTab() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {assistantCharts.map((chart) => (
+                {savedCharts.map((chart) => (
                   <ChartCard
                     key={chart.id}
                     chart={{ id: chart.id, title: chart.title, type: 'custom' }}
@@ -455,8 +474,8 @@ export function VisualsTab() {
                 key={chart.id}
                 chart={chart}
                 accent={activeGroup.color}
-                isSaved={!!savedCharts[chart.id]}
-                onSave={() => toggleSaved(chart)}
+                isSaved={savedTitles.has(chart.title)}
+                onSave={() => handleSave(chart, resolveBackendSpec(chart.id, backendCharts) ?? getVegaSpec(chart.type))}
                 onAnalyze={() => sendMessage(`Analyze this chart: ${chart.title}`)}
                 inlineSpec={resolveBackendSpec(chart.id, backendCharts)}
               />
