@@ -30,6 +30,9 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
+# Local context document
+context_document.md
+
 # Turbo
 .turbo
 
