@@ -1,5 +1,5 @@
-import { AppShell } from '@/components/layout/app-shell';
+import { WorkspaceLayout } from '@/components/layout/workspace-layout';
 
 export default function WorkspacePage() {
-  return <AppShell />;
+  return <WorkspaceLayout />;
 }

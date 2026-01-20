@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  ml:
+    build: .
+    ports:
+      - "8002:8002"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_DATASETS_BUCKET=${SUPABASE_DATASETS_BUCKET:-datasets}
+      - SUPABASE_MODELS_BUCKET=${SUPABASE_MODELS_BUCKET:-models}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DEBUG=${DEBUG:-true}
+      - MAX_SAMPLE_SIZE=${MAX_SAMPLE_SIZE:-200000}
+      - PYTORCH_MIN_ROWS=${PYTORCH_MIN_ROWS:-250000}
+      - PYTORCH_MIN_FEATURES=${PYTORCH_MIN_FEATURES:-200}
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload

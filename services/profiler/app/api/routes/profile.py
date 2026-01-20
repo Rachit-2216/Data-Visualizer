@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime, timezone
 
 from app.core.profiler import DataProfiler
 from app.services.supabase_client import get_supabase_client
@@ -33,7 +34,7 @@ async def create_profile(request: ProfileRequest):
         supabase.table("jobs").update({
             "status": "running",
             "progress": 10,
-            "started_at": "now()"
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", request.job_id).execute()
 
         # Download the file
@@ -47,9 +48,13 @@ async def create_profile(request: ProfileRequest):
         supabase.table("jobs").update({"progress": 50}).eq("id", request.job_id).execute()
 
         # Get dataset version info
-        version_result = supabase.table("dataset_versions").select("*").eq(
-            "id", request.dataset_version_id
-        ).single().execute()
+        version_result = (
+            supabase.table("dataset_versions")
+            .select("*, dataset:datasets(*)")
+            .eq("id", request.dataset_version_id)
+            .single()
+            .execute()
+        )
 
         if not version_result.data:
             raise HTTPException(status_code=404, detail="Dataset version not found")
@@ -60,25 +65,32 @@ async def create_profile(request: ProfileRequest):
         profile_data = profiler.create_demo_profile()
 
         # Insert profile
-        profile_result = supabase.table("dataset_profiles").insert({
-            "dataset_version_id": request.dataset_version_id,
-            "user_id": version["user_id"],
-            "profile_json": profile_data,
-            "warnings_json": profile_data.get("warnings", []),
-        }).execute()
+        schema_info = profile_data.get("schema", {}).get("columns", [])
+        statistics = profile_data.get("stats", {})
+        profile_result = supabase.table("dataset_profiles").upsert({
+            "version_id": request.dataset_version_id,
+            "schema_info": schema_info,
+            "statistics": statistics,
+            "correlations": profile_data.get("correlations"),
+            "missing_values": profile_data.get("missing"),
+            "warnings": profile_data.get("warnings", []),
+            "sample_data": [],
+            "computed_at": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="version_id").execute()
 
         # Update dataset version status
         supabase.table("dataset_versions").update({
             "status": "ready",
-            "row_count_est": profile_data["stats"]["row_count"],
-            "column_count_est": profile_data["stats"]["column_count"],
+            "row_count": statistics.get("row_count"),
+            "column_count": statistics.get("column_count"),
+            "error_message": None,
         }).eq("id", request.dataset_version_id).execute()
 
         # Complete the job
         supabase.table("jobs").update({
-            "status": "done",
+            "status": "completed",
             "progress": 100,
-            "finished_at": "now()"
+            "completed_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", request.job_id).execute()
 
         return ProfileResponse(
@@ -92,12 +104,13 @@ async def create_profile(request: ProfileRequest):
         supabase = get_supabase_client()
         supabase.table("jobs").update({
             "status": "failed",
-            "error": str(e),
-            "finished_at": "now()"
+            "error_message": str(e),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", request.job_id).execute()
 
         supabase.table("dataset_versions").update({
-            "status": "failed"
+            "status": "error",
+            "error_message": str(e),
         }).eq("id", request.dataset_version_id).execute()
 
         raise HTTPException(status_code=500, detail=str(e))
