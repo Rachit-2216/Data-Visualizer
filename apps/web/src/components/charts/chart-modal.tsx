@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef } from 'react';
-import { Download, Share2, Repeat2 } from 'lucide-react';
+import { useMemo, useRef } from 'react';
+import { Download, Share2, Repeat2, FileText } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +15,7 @@ const VegaLite = dynamic(() => import('react-vega').then((mod) => mod.VegaLite),
   ssr: false,
 });
 
-type ChartExpandModalProps = {
+type ChartModalProps = {
   open: boolean;
   onClose: () => void;
   spec: Record<string, unknown>;
@@ -43,8 +43,46 @@ const downloadDataUrl = (dataUrl: string, filename: string) => {
   link.remove();
 };
 
-export function ChartExpandModal({ open, onClose, spec, title }: ChartExpandModalProps) {
+const extractRows = (spec: Record<string, any>) => {
+  const data = spec?.data;
+  if (!data) return null;
+  if (Array.isArray(data.values)) return data.values;
+  if (data.name && spec.datasets && Array.isArray(spec.datasets[data.name])) {
+    return spec.datasets[data.name];
+  }
+  return null;
+};
+
+const toCsv = (rows: Array<Record<string, any>>) => {
+  if (rows.length === 0) return '';
+  const headers = Array.from(
+    rows.reduce((set, row) => {
+      Object.keys(row).forEach((key) => set.add(key));
+      return set;
+    }, new Set<string>())
+  );
+
+  const escapeValue = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    const raw = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    const escaped = raw.replace(/"/g, '""');
+    if (/[\n,"]/.test(escaped)) {
+      return `"${escaped}"`;
+    }
+    return escaped;
+  };
+
+  const lines = [headers.join(',')];
+  rows.forEach((row) => {
+    lines.push(headers.map((key) => escapeValue(row[key])).join(','));
+  });
+  return lines.join('\n');
+};
+
+export function ChartModal({ open, onClose, spec, title }: ChartModalProps) {
   const viewRef = useRef<any>(null);
+  const rows = useMemo(() => extractRows(spec), [spec]);
+  const canExportCsv = !!rows && rows.length > 0;
 
   const handleExport = async (format: 'png' | 'svg') => {
     if (!viewRef.current) return;
@@ -60,6 +98,12 @@ export function ChartExpandModal({ open, onClose, spec, title }: ChartExpandModa
   const handleDownloadData = () => {
     const data = JSON.stringify(spec.data ?? {}, null, 2);
     downloadBlob(data, `${title ?? 'chart'}-data.json`, 'application/json');
+  };
+
+  const handleExportCsv = () => {
+    if (!rows) return;
+    const csv = toCsv(rows);
+    downloadBlob(csv, `${title ?? 'chart'}.csv`, 'text/csv');
   };
 
   return (
@@ -85,6 +129,16 @@ export function ChartExpandModal({ open, onClose, spec, title }: ChartExpandModa
           <Button variant="outline" size="sm" className="gap-1" onClick={() => handleExport('svg')}>
             <Download className="h-3.5 w-3.5" />
             Export SVG
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={handleExportCsv}
+            disabled={!canExportCsv}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Export CSV
           </Button>
           <Button variant="outline" size="sm" className="gap-1" onClick={handleDownloadData}>
             <Repeat2 className="h-3.5 w-3.5" />

@@ -297,7 +297,7 @@ function KMeansViz({ isAnimating, width, height, data }: CanvasProps) {
         .sort((a, b) => a.rz - b.rz);
 
       allItems.forEach((item) => {
-        const color = colors[item.cluster];
+        const color = colors[item.cluster ?? -1] ?? '#22d3ee';
         if (item.type === 'point') {
           const glow = ctx.createRadialGradient(item.sx, item.sy, 0, item.sx, item.sy, 10);
           glow.addColorStop(0, `${color}40`);
@@ -401,7 +401,7 @@ function PCAViz({ isAnimating, width, height, data }: CanvasProps) {
 
       points.forEach((pt) => {
         const p = project(pt.x, pt.y, pt.z, rotY);
-        const color = classes[pt.cls];
+        const color = classes[pt.cls ?? -1] ?? '#22d3ee';
         const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, 8);
         glow.addColorStop(0, `${color}40`);
         glow.addColorStop(1, 'transparent');

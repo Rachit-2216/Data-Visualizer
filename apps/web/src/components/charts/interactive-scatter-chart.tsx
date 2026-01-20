@@ -17,6 +17,12 @@ export function InteractiveScatterChart({
 }) {
   const spec = {
     data: { values: data },
+    params: [
+      {
+        name: 'zoom',
+        select: { type: 'interval', bind: 'scales' },
+      },
+    ],
     mark: { type: 'circle', size: 80, opacity: 0.85 },
     encoding: {
       x: { field: xField, type: 'quantitative' },

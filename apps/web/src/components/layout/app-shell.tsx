@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { LayoutGrid, Terminal, Sparkles } from 'lucide-react';
 import { useLayoutStore } from '@/store/layout-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import { useAuthStore } from '@/store/auth-store';
@@ -14,16 +12,9 @@ import { TopBar } from './top-bar';
 import { ActivityBar } from './activity-bar';
 import { Sidebar } from './sidebar';
 import { TabBar } from './tab-bar';
-import { BottomPanel } from './bottom-panel';
-import { AssistantPanel } from './assistant-panel';
 import { MainContent } from './main-content';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { AssistantDrawer } from './assistant-drawer';
+import { StatusBar } from './status-bar';
 
 function AppShellSkeleton() {
   return (
@@ -44,13 +35,7 @@ export function AppShell() {
     sidebarOpen,
     sidebarWidth,
     sidebarCollapsedWidth,
-    assistantPanelOpen,
-    assistantDrawerExpanded,
-    assistantDrawerHeight,
     toggleSidebar,
-    toggleAssistantPanel,
-    toggleAssistantDrawer,
-    setAssistantDrawerHeight,
   } = useLayoutStore();
   const { initializeWorkspace, setProject, setDataset } = useWorkspaceStore();
   const router = useRouter();
@@ -125,29 +110,7 @@ export function AppShell() {
     return <AppShellSkeleton />;
   }
 
-  const drawerHeight = assistantDrawerExpanded ? assistantDrawerHeight : 64;
   const sidebarPixelWidth = sidebarOpen ? sidebarWidth : sidebarCollapsedWidth;
-
-  const startDrawerDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const startY = event.clientY;
-    const startHeight = assistantDrawerHeight;
-    const maxHeight = Math.min(window.innerHeight * 0.5, 520);
-
-    const onMove = (moveEvent: MouseEvent) => {
-      const delta = startY - moveEvent.clientY;
-      const nextHeight = Math.min(maxHeight, Math.max(96, startHeight + delta));
-      setAssistantDrawerHeight(nextHeight);
-    };
-
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" suppressHydrationWarning>
@@ -193,90 +156,11 @@ export function AppShell() {
             </div>
           </div>
 
-          {assistantPanelOpen && (
-            <div
-              className="absolute left-4 right-4 bottom-4 rounded-2xl border border-white/10 bg-[#060a12]/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(2,6,23,0.6)] transition-all duration-300"
-              style={{ height: drawerHeight, maxHeight: '50vh' }}
-            >
-              <div
-                className="h-6 flex items-center justify-center cursor-pointer text-white/40"
-                onClick={toggleAssistantDrawer}
-                onMouseDown={startDrawerDrag}
-              >
-                <div className="h-1 w-12 rounded-full bg-white/20" />
-              </div>
-              <div className="h-[calc(100%-24px)]">
-                <AssistantPanel collapsed={!assistantDrawerExpanded} />
-              </div>
-            </div>
-          )}
-          {!assistantPanelOpen && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute bottom-6 right-6 h-10 w-10 rounded-full border-white/10 bg-[#060a12] text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
-              onClick={toggleAssistantPanel}
-            >
-              <Sparkles className="h-4 w-4" />
-            </Button>
-          )}
+          <AssistantDrawer />
         </div>
       </div>
 
-      <StatusBar onToggleAssistant={toggleAssistantPanel} />
-    </div>
-  );
-}
-
-function StatusBar({ onToggleAssistant }: { onToggleAssistant: () => void }) {
-  const { currentProjectId } = useProjectStore();
-  const { datasetsByProject, currentDatasetId } = useDatasetStore();
-  const { bottomPanelOpen, toggleBottomPanel } = useLayoutStore();
-
-  const datasets = currentProjectId ? datasetsByProject[currentProjectId] ?? [] : [];
-  const activeDataset = datasets.find((dataset) => dataset.id === currentDatasetId);
-
-  return (
-    <div className="h-6 bg-[#05080f] text-white/60 flex items-center justify-between px-3 text-[11px] border-t border-white/10">
-      <div className="flex items-center gap-3">
-        <LayoutGrid className="h-3.5 w-3.5 text-cyan-300" />
-        <span>{activeDataset?.name ?? 'No dataset loaded'}</span>
-        {activeDataset && (
-          <span className="text-white/40">
-            {activeDataset.rowCount.toLocaleString()} rows · {activeDataset.columns.length} cols
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-5 gap-1 text-[11px] text-white/60 hover:text-white"
-          onClick={onToggleAssistant}
-        >
-          Assistant
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-5 gap-1 text-[11px] text-white/60 hover:text-white"
-          onClick={toggleBottomPanel}
-        >
-          <Terminal className="h-3 w-3" />
-          Jobs (2)
-        </Button>
-      </div>
-
-      <Dialog open={bottomPanelOpen} onOpenChange={toggleBottomPanel}>
-        <DialogContent className="max-w-2xl bg-[#0b111c] border border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle>Jobs & Logs</DialogTitle>
-          </DialogHeader>
-          <div className="h-[420px] rounded-xl border border-white/10 overflow-hidden">
-            <BottomPanel />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <StatusBar />
     </div>
   );
 }

@@ -47,25 +47,25 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
     return (
       <div className="h-full flex flex-col items-center py-2 gap-2 text-white">
         <button
-          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs"
+          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs transition-colors hover:bg-white/10 hover:border-cyan-300/40"
           onClick={() => setActiveSidebarSection('explorer')}
         >
           Ex
         </button>
         <button
-          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs"
+          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs transition-colors hover:bg-white/10 hover:border-cyan-300/40"
           onClick={() => setActiveSidebarSection('charts')}
         >
           Ch
         </button>
         <button
-          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs"
+          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs transition-colors hover:bg-white/10 hover:border-cyan-300/40"
           onClick={() => setActiveSidebarSection('profile')}
         >
           Pr
         </button>
         <button
-          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs"
+          className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 text-xs transition-colors hover:bg-white/10 hover:border-cyan-300/40"
           onClick={() => setActiveSidebarSection('settings')}
         >
           St
@@ -75,7 +75,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#060a12] text-white">
+    <div className="h-full flex flex-col bg-[#060a12]/90 text-white backdrop-blur-xl">
       <div className="h-10 flex items-center justify-between px-4 border-b border-white/10">
         <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
           {activeSidebarSection === 'explorer' && 'Explorer'}

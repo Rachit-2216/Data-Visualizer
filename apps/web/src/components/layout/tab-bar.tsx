@@ -26,7 +26,7 @@ export function TabBar() {
   };
 
   return (
-    <div className="h-10 flex items-center gap-2 overflow-x-auto">
+    <div className="h-10 flex items-center gap-2 overflow-x-auto rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-xl px-2 py-1">
       {tabs.map((tab) => {
         const Icon = tabIcons[tab.type] || LayoutDashboard;
         const isActive = tab.id === activeTabId;

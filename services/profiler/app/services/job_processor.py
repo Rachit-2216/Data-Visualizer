@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import io
+from datetime import datetime, timezone
 import polars as pl
 
 from app.services.supabase_client import get_supabase_client
@@ -37,9 +38,14 @@ class JobProcessor:
         supabase = get_supabase_client()
 
         # Get queued jobs
-        result = supabase.table("jobs").select(
-            "*, dataset_versions!inner(*)"
-        ).eq("status", "queued").eq("job_type", "profile").limit(5).execute()
+        result = (
+            supabase.table("jobs")
+            .select("*")
+            .eq("status", "queued")
+            .eq("job_type", "profile")
+            .limit(5)
+            .execute()
+        )
 
         if not result.data:
             return
@@ -52,21 +58,47 @@ class JobProcessor:
     async def process_job(self, job: dict):
         """Process a single profiling job."""
         job_id = job["id"]
-        version = job["dataset_versions"]
-        version_id = version["id"]
-        user_id = version["user_id"]
-        file_path = version["file_path"]
-        file_type = version.get("file_type", "")
-
-        logger.info(f"Processing job {job_id} for dataset version {version_id}")
+        payload = job.get("payload") or {}
+        version_id = payload.get("version_id")
+        if not version_id:
+            supabase = get_supabase_client()
+            supabase.table("jobs").update({
+                "status": "failed",
+                "error_message": "Missing version_id in job payload",
+                "progress": 100,
+            }).eq("id", job_id).execute()
+            return
 
         supabase = get_supabase_client()
+        version_result = (
+            supabase.table("dataset_versions")
+            .select("*, dataset:datasets(*, project:projects(*))")
+            .eq("id", version_id)
+            .single()
+            .execute()
+        )
+        version = version_result.data
+        if not version:
+            supabase.table("jobs").update({
+                "status": "failed",
+                "error_message": "Dataset version not found",
+                "progress": 100,
+            }).eq("id", job_id).execute()
+            return
+
+        dataset = version.get("dataset") or {}
+        file_path = version.get("storage_path")
+        file_type = dataset.get("file_type", "")
+        dataset_name = dataset.get("name") or "Dataset"
+
+        logger.info(f"Processing job {job_id} for dataset version {version_id}")
 
         try:
             # Update job status to running
             supabase.table("jobs").update({
                 "status": "running",
                 "progress": 10,
+                "started_at": datetime.now(timezone.utc).isoformat(),
             }).eq("id", job_id).execute()
 
             # Update version status
@@ -77,6 +109,8 @@ class JobProcessor:
             settings = get_settings()
             bucket = settings.supabase_datasets_bucket
             logger.info(f"Downloading file from: {bucket}/{file_path}")
+            if not file_path:
+                raise ValueError("Dataset version missing storage_path")
             file_bytes = supabase.storage.from_(bucket).download(file_path)
             df = self._read_dataset(file_bytes, file_type)
 
@@ -85,14 +119,6 @@ class JobProcessor:
             supabase.table("jobs").update({"progress": 50}).eq("id", job_id).execute()
 
             profile_data = profiler.profile_dataframe(df)
-            dataset_record = (
-                supabase.table("datasets")
-                .select("name")
-                .eq("id", version["dataset_id"])
-                .single()
-                .execute()
-            )
-            dataset_name = dataset_record.data["name"] if dataset_record.data else "Dataset"
             profile_data["dataset"] = {
                 "name": dataset_name,
                 "version": version.get("version_number", 1),
@@ -104,25 +130,32 @@ class JobProcessor:
             supabase.table("jobs").update({"progress": 80}).eq("id", job_id).execute()
 
             # Store profile
-            supabase.table("dataset_profiles").insert({
-                "dataset_version_id": version_id,
-                "user_id": user_id,
-                "profile_json": profile_data,
-                "sample_preview_json": df.head(50).to_dicts(),
-                "warnings_json": profile_data.get("warnings", []),
-            }).execute()
+            schema_info = profile_data.get("schema", {}).get("columns", [])
+            statistics = profile_data.get("stats", {})
+            supabase.table("dataset_profiles").upsert({
+                "version_id": version_id,
+                "schema_info": schema_info,
+                "statistics": statistics,
+                "correlations": profile_data.get("correlations"),
+                "missing_values": profile_data.get("missing"),
+                "warnings": profile_data.get("warnings", []),
+                "sample_data": df.head(50).to_dicts(),
+                "computed_at": datetime.now(timezone.utc).isoformat(),
+            }, on_conflict="version_id").execute()
 
             # Update dataset version
             supabase.table("dataset_versions").update({
                 "status": "ready",
-                "row_count_est": profile_data["stats"]["row_count"],
-                "column_count_est": profile_data["stats"]["column_count"],
+                "row_count": statistics.get("row_count"),
+                "column_count": statistics.get("column_count"),
+                "error_message": None,
             }).eq("id", version_id).execute()
 
             # Mark job complete
             supabase.table("jobs").update({
-                "status": "done",
+                "status": "completed",
                 "progress": 100,
+                "completed_at": datetime.now(timezone.utc).isoformat(),
             }).eq("id", job_id).execute()
 
             logger.info(f"Job {job_id} completed successfully")
@@ -133,11 +166,12 @@ class JobProcessor:
             # Mark as failed
             supabase.table("jobs").update({
                 "status": "failed",
-                "error": str(e),
+                "error_message": str(e),
             }).eq("id", job_id).execute()
 
             supabase.table("dataset_versions").update({
-                "status": "failed"
+                "status": "error",
+                "error_message": str(e),
             }).eq("id", version_id).execute()
 
     def stop(self):
