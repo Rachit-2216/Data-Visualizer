@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     supabase_datasets_bucket: str = "datasets"
     supabase_models_bucket: str = "models"
 
-    # Gemini
-    gemini_api_key: str | None = None
-    gemini_model: str = "gemini-1.5-flash"
+    # Groq
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.1-70b-versatile"
 
     # App
     environment: str = "development"

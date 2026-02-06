@@ -10,7 +10,7 @@ def client():
     os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "service-role-key")
     os.environ.setdefault("SUPABASE_ANON_KEY", "anon-key")
     os.environ.setdefault("SUPABASE_JWT_SECRET", "jwt-secret")
-    os.environ.setdefault("GEMINI_API_KEY", "test-key")
+    os.environ.setdefault("GROQ_API_KEY", "test-key")
 
     from app.main import app
 

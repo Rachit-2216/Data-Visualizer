@@ -7,7 +7,7 @@ import { useChatStore, type ChatMessage } from '@/store/chat-store';
 import { useProjectStore } from '@/store/project-store';
 import { useDatasetStore } from '@/store/dataset-store';
 import { isUuid } from '@/lib/utils';
-import type { ChatRequestPayload, StreamEvent } from '@/lib/gemini/types';
+import type { ChatRequestPayload, StreamEvent } from '@/lib/groq/types';
 
 const decoder = new TextDecoder();
 
@@ -154,105 +154,120 @@ export function useChat() {
         status: 'streaming',
       });
 
-      try {
-        if (user) {
-          for await (const chunk of apiClient.chatStream(
-            conversationId,
-            trimmed,
-            datasetVersionId
-          )) {
-            if (chunk.type === 'text') {
-              assistantContent += chunk.content ?? '';
+      const streamFromLocal = async () => {
+        const payload: ChatRequestPayload = {
+          message: trimmed,
+          datasetContext: toDatasetContext(activeDataset),
+          conversationId,
+          model: 'llama-3.1-70b-versatile',
+          history: (messagesByConversation[conversationId] ?? [])
+            .filter((msg) => msg.role !== 'assistant' || msg.content)
+            .slice(-8)
+            .map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+        };
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok || !response.body) {
+          let message = 'Failed to fetch assistant response';
+          try {
+            const text = await response.text();
+            if (text) {
+              const parsed = JSON.parse(text) as { error?: string };
+              if (parsed?.error) {
+                message = parsed.error;
+              }
+            }
+          } catch {
+            // ignore parsing errors
+          }
+          throw new Error(message);
+        }
+
+        const reader = response.body.getReader();
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line) as StreamEvent;
+            if (event.type === 'delta') {
+              assistantContent += event.text;
               updateMessage(conversationId, assistantId, {
                 content: assistantContent,
                 status: 'streaming',
               });
-            } else if (chunk.type === 'chart') {
-              assistantChartSpec = (chunk.spec as Record<string, unknown>) ?? null;
-            } else if (chunk.type === 'error') {
-              throw new Error(chunk.message ?? 'Failed to stream response');
+            }
+            if (event.type === 'done') {
+              assistantContent = event.text;
+              assistantChartSpec = event.chartSpec ?? null;
+              updateMessage(conversationId, assistantId, {
+                content: event.text,
+                chartSpec: assistantChartSpec,
+                status: 'done',
+              });
+            }
+            if (event.type === 'error') {
+              updateMessage(conversationId, assistantId, {
+                content: event.message,
+                status: 'error',
+              });
+              setError(event.message);
             }
           }
+        }
+      };
 
-          updateMessage(conversationId, assistantId, {
-            content: assistantContent,
-            chartSpec: assistantChartSpec,
-            status: 'done',
-          });
-        } else {
-          const payload: ChatRequestPayload = {
-            message: trimmed,
-            datasetContext: toDatasetContext(activeDataset),
-            conversationId,
-            model: 'gemini-2.0-flash',
-            history: (messagesByConversation[conversationId] ?? [])
-              .filter((msg) => msg.role !== 'assistant' || msg.content)
-              .slice(-8)
-              .map((msg) => ({
-                role: msg.role,
-                content: msg.content,
-              })),
-          };
-          const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-
-          if (!response.ok || !response.body) {
-            let message = 'Failed to fetch assistant response';
-            try {
-              const text = await response.text();
-              if (text) {
-                const parsed = JSON.parse(text) as { error?: string };
-                if (parsed?.error) {
-                  message = parsed.error;
-                }
-              }
-            } catch {
-              // ignore parsing errors
-            }
-            throw new Error(message);
-          }
-
-          const reader = response.body.getReader();
-          let buffer = '';
-
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-
-            for (const line of lines) {
-              if (!line.trim()) continue;
-              const event = JSON.parse(line) as StreamEvent;
-              if (event.type === 'delta') {
-                assistantContent += event.text;
+      try {
+        if (user) {
+          try {
+            for await (const chunk of apiClient.chatStream(
+              conversationId,
+              trimmed,
+              datasetVersionId
+            )) {
+              if (chunk.type === 'text') {
+                assistantContent += chunk.content ?? '';
                 updateMessage(conversationId, assistantId, {
                   content: assistantContent,
                   status: 'streaming',
                 });
-              }
-              if (event.type === 'done') {
-                assistantContent = event.text;
-                assistantChartSpec = event.chartSpec ?? null;
-                updateMessage(conversationId, assistantId, {
-                  content: event.text,
-                  chartSpec: assistantChartSpec,
-                  status: 'done',
-                });
-              }
-              if (event.type === 'error') {
-                updateMessage(conversationId, assistantId, {
-                  content: event.message,
-                  status: 'error',
-                });
-                setError(event.message);
+              } else if (chunk.type === 'chart') {
+                assistantChartSpec = (chunk.spec as Record<string, unknown>) ?? null;
+              } else if (chunk.type === 'error') {
+                throw new Error(chunk.message ?? 'Failed to stream response');
               }
             }
+
+            updateMessage(conversationId, assistantId, {
+              content: assistantContent,
+              chartSpec: assistantChartSpec,
+              status: 'done',
+            });
+          } catch (error) {
+            if (
+              error instanceof ApiError &&
+              (error.code === 'NETWORK_ERROR' || error.status === 503 || error.status >= 500)
+            ) {
+              await streamFromLocal();
+            } else {
+              throw error;
+            }
           }
+        } else {
+          await streamFromLocal();
         }
       } catch (error) {
         const message =
@@ -316,6 +331,14 @@ export function useChat() {
       setActiveConversation(conv.id);
       refreshSuggestions();
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (error.code === 'NETWORK_ERROR' || error.status >= 500)
+      ) {
+        setError('Backend offline. Chat is running in local mode.');
+        refreshSuggestions();
+        return;
+      }
       const message =
         error instanceof ApiError ? error.message : 'Failed to load conversations';
       setError(message);

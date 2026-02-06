@@ -2,10 +2,13 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createClient } from '@/lib/supabase/client';
+import { createClientOptional } from '@/lib/supabase/client';
 import { demoDatasets, type DemoDataset, type DatasetColumn, type DatasetProfile } from '@/lib/demo-data';
 import { apiClient, ApiError, type ApiDatasetVersion } from '@/lib/api-client';
 import { isUuid } from '@/lib/utils';
+import { isOfflineMode } from '@/lib/offline/mode';
+import { parseDatasetFile } from '@/lib/offline/parser';
+import { buildOfflineProfile } from '@/lib/offline/profiler';
 
 export type Dataset = DemoDataset & {
   projectId: string;
@@ -161,10 +164,20 @@ export const useDatasetStore = create<DatasetState>()(
             }
             return;
           }
-          const supabase = createClient();
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+          if (isOfflineMode()) {
+            const local = get().datasetsByProject[projectId] ?? [];
+            const nextDatasetId = get().currentDatasetId ?? local[0]?.id ?? null;
+            const currentDataset = local.find((item) => item.id === nextDatasetId);
+            set((state) => ({
+              datasetsByProject: { ...state.datasetsByProject, [projectId]: local },
+              currentDatasetId: nextDatasetId,
+              currentDatasetVersionId: currentDataset?.versionId ?? state.currentDatasetVersionId ?? null,
+            }));
+            return;
+          }
+          const supabase = createClientOptional();
+          const user =
+            supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
           if (!user) {
             const demoSet = demoDatasets[projectId];
@@ -210,7 +223,18 @@ export const useDatasetStore = create<DatasetState>()(
         } catch (error) {
           const message =
             error instanceof ApiError ? error.message : 'Failed to load datasets';
-          set({ error: message });
+          const demoSet = demoDatasets[projectId];
+          if (demoSet) {
+            set((state) => ({
+              datasetsByProject: { ...state.datasetsByProject, [projectId]: demoSet },
+              currentDatasetId: state.currentDatasetId ?? demoSet[0]?.id ?? null,
+              currentDatasetVersionId:
+                state.currentDatasetVersionId ?? (demoSet[0]?.id ? `${demoSet[0].id}-v1` : null),
+              error: message,
+            }));
+          } else {
+            set({ error: message });
+          }
         } finally {
           set({ isLoading: false });
         }
@@ -246,12 +270,34 @@ export const useDatasetStore = create<DatasetState>()(
           profile: createMockProfile(name || 'New Dataset', columns, rowCount),
         };
 
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const supabase = createClientOptional();
+        const user =
+          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
         let jobId: string | null = null;
+        if (!user || isOfflineMode()) {
+          try {
+            const parsed = await parseDatasetFile(file);
+            const derived = buildOfflineProfile(
+              dataset.name,
+              parsed.rows,
+              parsed.columns,
+              parsed.rowCount,
+              parsed.sampleNote
+            );
+            dataset = {
+              ...dataset,
+              columns: derived.columns,
+              sampleRows: derived.sampleRows,
+              profile: derived.profile,
+              rowCount: derived.profile.stats.rowCount,
+            };
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : 'Failed to parse dataset locally';
+            set({ error: message });
+          }
+        }
         if (user && isUuid(projectId)) {
           try {
             const extension = file.name.split('.').pop()?.toLowerCase() || 'csv';
@@ -326,10 +372,9 @@ export const useDatasetStore = create<DatasetState>()(
           return;
         }
 
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const supabase = createClientOptional();
+        const user =
+          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
         if (user && isUuid(datasetId)) {
           try {
@@ -369,10 +414,10 @@ export const useDatasetStore = create<DatasetState>()(
         });
       },
       fetchDatasetProfile: async (datasetId: string, versionId: string) => {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        if (isOfflineMode()) return;
+        const supabase = createClientOptional();
+        const user =
+          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
         if (!user || !isUuid(datasetId) || !isUuid(versionId)) return;
         try {

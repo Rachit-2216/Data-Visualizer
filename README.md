@@ -1,152 +1,159 @@
-# DataCanvas - Claude Context README
+# DataCanvas
 
-This README is written for an AI assistant (Claude) to quickly understand the
-current project scope, architecture, implemented work, and next steps.
+No‑code dataset visualizer and ML playground with a VS Code‑style workspace.
 
-## Project Summary
-DataCanvas is a no-code dataset visualizer and ML playground with a VS Code-like
-workspace. Users can upload datasets, auto-generate profiles/visuals, chat with
-an AI assistant, and explore a CodeViz tab for model visualization.
+**Stack:** Next.js 14, FastAPI, Supabase (Postgres/Auth/Storage), Groq (LLM), Polars/Pandas (profiling), Three.js (3D UI).
 
-## Repository Layout
-- apps/web: Next.js 15 frontend (TypeScript, Tailwind, Zustand)
-- services/api: FastAPI backend gateway (projects, datasets, visuals, chat)
-- services/profiler: FastAPI profiler worker (dataset profiling jobs)
-- packages/types: shared TypeScript types
-- supabase: SQL migrations and schema
+---
 
-## Current Status (Implemented)
-- Frontend wired to backend API for authenticated users:
-  - Projects and datasets
-  - Upload flow with profiling job polling
-  - Dataset profiles and visuals
-  - Code parsing for CodeViz
-  - Chat via backend API
-- Demo mode (unauthenticated) uses local mock data and Next.js API route.
-- Profiler service now downloads dataset from Supabase Storage, computes profile,
-  and writes results to dataset_profiles.
-- API service provides dataset-aware visuals and code parsing.
+## Highlights
 
-## UX / UI Direction (Required)
-Design language: "Bloomberg Terminal meets Figma". Keep it dense, professional,
-and bold without feeling cluttered.
+- Upload CSV/TSV/JSON/Parquet/XLSX and get instant profiling + visuals
+- Interactive charts + expandable modals
+- AI assistant (Groq) with chart generation
+- CodeViz tab for ML architecture visualization (2D/3D)
+- Demo mode + offline fallback (no Supabase required)
 
-Core layout principles:
-- Sidebar is narrow and collapsible.
-- Tabs are floating pills, reorderable.
-- Assistant panel is a bottom drawer (collapsed by default).
-- Status bar is slim and informative.
-- Charts are interactive (hover/click/expand) with smooth animations.
+---
 
-## Architecture
+## Repo Structure
 
-### Frontend (apps/web)
-- Zustand stores:
-  - auth-store, project-store, dataset-store, visuals-store, chat-store,
-    codeviz-store, layout-store
-- Assistant UI components:
-  - apps/web/src/components/assistant/*
-- Interactive charts:
-  - apps/web/src/components/charts/*
-- CodeViz:
-  - apps/web/src/components/codeviz/*
-- API client:
-  - apps/web/src/lib/api-client.ts
+```
+apps/
+  web/                  # Next.js frontend
+services/
+  api/                  # FastAPI gateway
+  profiler/             # Background profiling worker
+  ml/                   # ML service (optional)
+packages/
+  types/                # Shared TypeScript types
+supabase/
+  migrations/           # Schema + RLS + seed data
+```
 
-### API Service (services/api)
-FastAPI gateway that uses Supabase (Auth, Postgres, Storage) and Gemini.
+---
 
-Key endpoints:
-- GET /health
-- GET /api/projects
-- POST /api/projects
-- POST /api/projects/{project_id}/datasets
-- POST /api/datasets/{dataset_id}/upload
-- GET /api/datasets/{dataset_id}/versions
-- GET /api/datasets/versions/{version_id}/profile
-- POST /api/code/parse
-- POST /api/visuals/simulate
-- GET /api/visuals/sections/{version_id}
-- POST /api/chat
+## Quick Start
 
-Auth:
-- Frontend uses Supabase Auth; JWT is passed via Authorization: Bearer token.
-- API uses service role key for DB writes and Storage access.
+### 1) Install
+```
+pnpm install
+```
 
-### Profiler Service (services/profiler)
-- Polls jobs table for queued profile jobs.
-- Downloads dataset file from Supabase Storage bucket (datasets).
-- Computes stats with Polars/Pandas.
-- Writes JSON profile into dataset_profiles.
-- Marks job as done and dataset_version as ready.
+### 2) Frontend
+```
+pnpm -C apps/web dev
+```
 
-## Data Flow (Upload -> Profile -> Visuals)
-1) User uploads file
-2) dataset_versions row created (status uploaded)
-3) job created (type profile, status queued)
-4) profiler downloads file, computes profile
-5) dataset_profiles row written
-6) job marked done, dataset_version marked ready
-7) frontend pulls profile and visuals
+### 3) API + Profiler
+```
+cd services/api
+docker compose up --build
+```
 
-## Gemini Integration
-- GEMINI_API_KEY is required for chat.
-- Available models differ by API key and quota.
-- Use /api/chat/models (Next.js route) to list available models.
-- Free tier has strict quotas and may return 429 or model-not-found.
+```
+cd services/profiler
+docker compose up --build
+```
 
-## Prompt History (High-Level Requirements)
-This is the consolidated context of prior requests:
-- Fix navigation, project management, dataset management, exports, and auth.
-- Implement demo mode with Titanic/Iris datasets.
-- Build AI assistant with Gemini (streaming chat, chart generation).
-- Redesign workspace layout and make charts interactive.
-- Build CodeViz with dynamic parsing (PyTorch/Keras functional/sequential).
-- Build full backend (FastAPI + Supabase) and wire frontend to it.
-- Add dataset-aware visuals and analytics (not simulated).
+---
 
-## Future Development (Needed)
-Backend-first expansion is the priority.
-- Extend code parsing:
-  - More layers (Conv2D, LSTM, Attention, etc)
-  - Keras Functional API and complex graphs
-- Replace any remaining simulated analytics with real dataset-aware outputs.
-- Expand API endpoints for advanced analytics and model training.
-- Improve chat reliability with model fallback and quota handling.
-- Continue UI polish under the current design direction.
-- Add tests and error handling around uploads, profiling, and chat.
+## Environment Variables
 
-## Environment Variables (Do Not Commit)
-Frontend (apps/web/.env.local):
-- NEXT_PUBLIC_SUPABASE_URL
-- NEXT_PUBLIC_SUPABASE_ANON_KEY
-- SUPABASE_SERVICE_ROLE_KEY (server only)
-- GEMINI_API_KEY
-- NEXT_PUBLIC_API_URL
+Never commit real secrets. Use `.env.example` and `.env.local.example`.
 
-API (services/api/.env):
-- SUPABASE_URL
-- SUPABASE_SERVICE_ROLE_KEY
-- SUPABASE_ANON_KEY
-- SUPABASE_DATASETS_BUCKET
-- GEMINI_API_KEY
+### Frontend (`apps/web/.env.local`)
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_API_URL=http://localhost:8000
+GROQ_API_KEY=
+```
 
-Profiler (services/profiler/.env):
-- SUPABASE_URL
-- SUPABASE_SERVICE_ROLE_KEY
-- SUPABASE_DATASETS_BUCKET
+### API (`services/api/.env`)
+```
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_ANON_KEY=
+SUPABASE_JWT_SECRET=
+SUPABASE_DATASETS_BUCKET=datasets
+SUPABASE_MODELS_BUCKET=models
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-70b-versatile
+```
 
-## Local Development
-- Frontend:
-  - pnpm install
-  - pnpm dev
-- API:
-  - cd services/api
-  - docker compose up --build
-- Profiler:
-  - cd services/profiler
-  - docker compose up --build
+### Profiler (`services/profiler/.env`)
+```
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_DATASETS_BUCKET=datasets
+```
 
-Notes:
-- Stop services when not testing: docker compose down
-- Avoid committing .env files or secrets.
+---
+
+## Offline / Demo Mode
+
+If Supabase env vars are not configured, DataCanvas auto‑falls back to offline mode:
+- Projects and datasets are stored in local storage.
+- Uploads are parsed locally (CSV/TSV/JSON/XLSX and Parquet via DuckDB WASM).
+- Profiles and charts are generated client‑side.
+
+This is ideal for Vercel preview deployments or public demos without a database.
+
+---
+
+## Supported File Types
+
+- CSV
+- TSV
+- JSON (array of objects)
+- Parquet
+- XLSX / XLS
+
+Large files are auto‑sampled to keep UI responsive.
+
+---
+
+## Scripts
+
+### Frontend
+```
+pnpm -C apps/web dev
+pnpm -C apps/web build
+pnpm -C apps/web start
+```
+
+### API
+```
+cd services/api
+docker compose up --build
+```
+
+### Profiler
+```
+cd services/profiler
+docker compose up --build
+```
+
+---
+
+## Screenshots
+
+Add screenshots here later:
+- `docs/screenshots/landing.png`
+- `docs/screenshots/workspace.png`
+- `docs/screenshots/codeviz.png`
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a branch
+3. PR with a clear description and screenshots if UI‑related
+
+---
+
+## License
+
+MIT

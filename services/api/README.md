@@ -13,7 +13,7 @@ cp .env.example .env
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_DATASETS_BUCKET`
-- `GEMINI_API_KEY` (optional, for /api/chat)
+- `GROQ_API_KEY` (optional, for /api/chat)
 
 ## Run with Docker
 

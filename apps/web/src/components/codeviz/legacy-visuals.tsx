@@ -22,6 +22,13 @@ const drawBackground = (ctx: CanvasRenderingContext2D, width: number, height: nu
   ctx.fillRect(0, 0, width, height);
 };
 
+const isFiniteNumber = (value: number) => Number.isFinite(value);
+
+const isFinitePoint = (point: { sx: number; sy: number }) =>
+  isFiniteNumber(point.sx) && isFiniteNumber(point.sy);
+
+const normalizeColor = (color: string) => (color && color !== 'undefined' ? color : '#22d3ee');
+
 const configureCanvas = (
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
@@ -97,21 +104,26 @@ function LinearRegressionViz({ isAnimating, width, height, data }: CanvasProps) 
         project(-1, 0.5 * -1 + 0.3 * 1, 1, rotY),
       ];
 
-      ctx.fillStyle = 'rgba(99, 102, 241, 0.25)';
-      ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(planeCorners[0].sx, planeCorners[0].sy);
-      planeCorners.forEach((p) => ctx.lineTo(p.sx, p.sy));
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+      const planeVisible = planeCorners.every(isFinitePoint);
+      if (planeVisible) {
+        ctx.fillStyle = 'rgba(99, 102, 241, 0.25)';
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(planeCorners[0].sx, planeCorners[0].sy);
+        planeCorners.forEach((p) => ctx.lineTo(p.sx, p.sy));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
 
       points.forEach((pt) => {
         const p = project(pt.x, pt.y, pt.z, rotY);
+        if (!isFinitePoint(p)) return;
         const coeffs = (data?.coefficients as { x?: number; z?: number }) ?? { x: 0.5, z: 0.3 };
         const predictedY = (coeffs.x ?? 0.5) * pt.x + (coeffs.z ?? 0.3) * pt.z;
         const pPlane = project(pt.x, predictedY, pt.z, rotY);
+        if (!isFinitePoint(pPlane)) return;
 
         ctx.strokeStyle =
           pt.y > predictedY ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
@@ -206,7 +218,8 @@ function LogisticRegressionViz({ isAnimating, width, height, data }: CanvasProps
 
       points.forEach((pt) => {
         const p = project(pt.x, pt.y, pt.z, rotY);
-        const color = pt.cls === 0 ? '#f97316' : '#6366f1';
+        const color = normalizeColor(pt.cls === 0 ? '#f97316' : '#6366f1');
+        if (!isFinitePoint(p)) return;
         const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, 10);
         glow.addColorStop(0, `${color}40`);
         glow.addColorStop(1, 'transparent');
@@ -294,10 +307,11 @@ function KMeansViz({ isAnimating, width, height, data }: CanvasProps) {
           const proj = project(item.x, item.y, item.z, rotY);
           return { ...item, ...proj };
         })
+        .filter((item) => isFinitePoint(item))
         .sort((a, b) => a.rz - b.rz);
 
       allItems.forEach((item) => {
-        const color = colors[item.cluster ?? -1] ?? '#22d3ee';
+        const color = normalizeColor(colors[item.cluster ?? -1] ?? '#22d3ee');
         if (item.type === 'point') {
           const glow = ctx.createRadialGradient(item.sx, item.sy, 0, item.sx, item.sy, 10);
           glow.addColorStop(0, `${color}40`);
@@ -390,7 +404,8 @@ function PCAViz({ isAnimating, width, height, data }: CanvasProps) {
       const sin = Math.sin(rotY);
       const rx = x * cos - z * sin;
       const rz = x * sin + z * cos;
-      const scale = 140 / (3 + rz);
+      const denom = Math.max(0.4, 3 + rz);
+      const scale = Math.min(240, 140 / denom);
       return { sx: width / 2 + rx * scale, sy: height / 2 - y * scale * 0.85, scale };
     };
 
@@ -401,7 +416,10 @@ function PCAViz({ isAnimating, width, height, data }: CanvasProps) {
 
       points.forEach((pt) => {
         const p = project(pt.x, pt.y, pt.z, rotY);
-        const color = classes[pt.cls ?? -1] ?? '#22d3ee';
+        if (!Number.isFinite(p.sx) || !Number.isFinite(p.sy) || !Number.isFinite(p.scale)) {
+          return;
+        }
+        const color = normalizeColor(classes[pt.cls ?? -1] ?? '#22d3ee');
         const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, 8);
         glow.addColorStop(0, `${color}40`);
         glow.addColorStop(1, 'transparent');

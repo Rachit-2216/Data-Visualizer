@@ -2,10 +2,11 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createClient } from '@/lib/supabase/client';
+import { createClientOptional } from '@/lib/supabase/client';
 import { demoProject, type DemoProject } from '@/lib/demo-data';
 import { apiClient, ApiError, type ApiProject } from '@/lib/api-client';
 import { isUuid } from '@/lib/utils';
+import { isOfflineMode } from '@/lib/offline/mode';
 
 export type Project = DemoProject & {
   isProtected?: boolean;
@@ -71,7 +72,27 @@ export const useProjectStore = create<ProjectState>()(
       fetchProjects: async () => {
         set({ isLoading: true, error: null });
         try {
-          const supabase = createClient();
+          if (isOfflineMode()) {
+            const merged = ensureDemoProject(get().projects);
+            const current = get().currentProjectId;
+            const activeId =
+              current && merged.some((project) => project.id === current)
+                ? current
+                : merged[0]?.id ?? demoProject.id;
+            set({ projects: merged, currentProjectId: activeId });
+            return;
+          }
+          const supabase = createClientOptional();
+          if (!supabase) {
+            const merged = ensureDemoProject(get().projects);
+            const current = get().currentProjectId;
+            const activeId =
+              current && merged.some((project) => project.id === current)
+                ? current
+                : merged[0]?.id ?? demoProject.id;
+            set({ projects: merged, currentProjectId: activeId });
+            return;
+          }
           const {
             data: { user },
           } = await supabase.auth.getUser();
@@ -99,7 +120,9 @@ export const useProjectStore = create<ProjectState>()(
         } catch (error) {
           const message =
             error instanceof ApiError ? error.message : 'Failed to load projects';
-          set({ error: message });
+          const fallback = ensureDemoProject(get().projects);
+          const activeId = fallback[0]?.id ?? demoProject.id;
+          set({ error: message, projects: fallback, currentProjectId: activeId });
         } finally {
           set({ isLoading: false });
         }
@@ -110,10 +133,9 @@ export const useProjectStore = create<ProjectState>()(
           return null;
         }
 
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const supabase = createClientOptional();
+        const user =
+          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
         if (user) {
           try {
@@ -151,10 +173,9 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const supabase = createClientOptional();
+        const user =
+          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
         if (user) {
           try {

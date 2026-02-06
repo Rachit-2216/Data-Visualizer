@@ -112,13 +112,21 @@ class JobProcessor:
             if not file_path:
                 raise ValueError("Dataset version missing storage_path")
             file_bytes = supabase.storage.from_(bucket).download(file_path)
-            df = self._read_dataset(file_bytes, file_type)
+            df, sampled_input, sample_note = self._read_dataset(file_bytes, file_type)
 
             profiler = DataProfiler(max_sample_size=settings.max_sample_size)
 
             supabase.table("jobs").update({"progress": 50}).eq("id", job_id).execute()
 
             profile_data = profiler.profile_dataframe(df)
+            if sampled_input:
+                warnings = profile_data.get("warnings") or []
+                warnings.append({
+                    "type": "sampling",
+                    "severity": "medium",
+                    "message": sample_note or "Profile computed on a sample due to file size. Results are approximate.",
+                })
+                profile_data["warnings"] = warnings
             profile_data["dataset"] = {
                 "name": dataset_name,
                 "version": version.get("version_number", 1),
@@ -178,17 +186,46 @@ class JobProcessor:
         """Stop the polling loop."""
         self.running = False
 
-    def _read_dataset(self, file_bytes: bytes, file_type: str) -> pl.DataFrame:
+    def _read_dataset(self, file_bytes: bytes, file_type: str) -> tuple[pl.DataFrame, bool, str | None]:
         file_type = (file_type or "").lower()
         if "/" in file_type:
             file_type = file_type.split("/")[-1]
         buffer = io.BytesIO(file_bytes)
+        settings = get_settings()
+        max_file_size_bytes = settings.max_file_size_mb * 1024 * 1024
+        is_large = len(file_bytes) > max_file_size_bytes
+        head_rows = settings.head_sample_size
+        sample_note = None
         if file_type in ["csv", "txt"]:
-            return pl.read_csv(buffer)
+            if is_large:
+                sample_note = f"Profile computed on first {head_rows} rows (file size exceeds {settings.max_file_size_mb}MB)."
+                return pl.read_csv(buffer, n_rows=head_rows, infer_schema_length=1000, try_parse_dates=True, ignore_errors=True), True, sample_note
+            return pl.read_csv(buffer, infer_schema_length=1000, try_parse_dates=True, ignore_errors=True), False, None
         if file_type in ["tsv"]:
-            return pl.read_csv(buffer, separator="\t")
+            if is_large:
+                sample_note = f"Profile computed on first {head_rows} rows (file size exceeds {settings.max_file_size_mb}MB)."
+                return pl.read_csv(buffer, separator="\t", n_rows=head_rows, infer_schema_length=1000, try_parse_dates=True, ignore_errors=True), True, sample_note
+            return pl.read_csv(buffer, separator="\t", infer_schema_length=1000, try_parse_dates=True, ignore_errors=True), False, None
         if file_type in ["json", "ndjson"]:
-            return pl.read_json(buffer)
+            if is_large:
+                sample_note = f"Profile computed on first {head_rows} rows (file size exceeds {settings.max_file_size_mb}MB)."
+                return pl.read_json(buffer, n_rows=head_rows), True, sample_note
+            return pl.read_json(buffer), False, None
         if file_type in ["parquet"]:
-            return pl.read_parquet(buffer)
+            if is_large:
+                sample_note = f"Profile computed on first {head_rows} rows (file size exceeds {settings.max_file_size_mb}MB)."
+                try:
+                    return pl.read_parquet(buffer, n_rows=head_rows), True, sample_note
+                except TypeError:
+                    # Fallback for older polars without n_rows support
+                    return pl.read_parquet(buffer).head(head_rows), True, sample_note
+            return pl.read_parquet(buffer), False, None
+        if file_type in ["xlsx", "xls"]:
+            import pandas as pd
+            if is_large:
+                sample_note = f"Profile computed on first {head_rows} rows (file size exceeds {settings.max_file_size_mb}MB)."
+                pdf = pd.read_excel(buffer, nrows=head_rows)
+                return pl.from_pandas(pdf), True, sample_note
+            pdf = pd.read_excel(buffer)
+            return pl.from_pandas(pdf), False, None
         raise ValueError(f"Unsupported file type: {file_type}")

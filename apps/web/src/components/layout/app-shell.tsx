@@ -59,12 +59,12 @@ export function AppShell() {
   }, [initialize]);
 
   useEffect(() => {
-    fetchProjects();
+    void fetchProjects().catch(() => {});
   }, [fetchProjects]);
 
   useEffect(() => {
     if (currentProjectId) {
-      fetchDatasets(currentProjectId);
+      void fetchDatasets(currentProjectId).catch(() => {});
     }
   }, [currentProjectId, fetchDatasets]);
 
@@ -91,7 +91,7 @@ export function AppShell() {
 
   useEffect(() => {
     if (currentDatasetId && currentDatasetVersionId) {
-      fetchDatasetProfile(currentDatasetId, currentDatasetVersionId);
+      void fetchDatasetProfile(currentDatasetId, currentDatasetVersionId).catch(() => {});
     }
   }, [currentDatasetId, currentDatasetVersionId, fetchDatasetProfile]);
 
@@ -136,7 +136,7 @@ export function AppShell() {
 
       <TopBar />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         <ActivityBar />
 
         <div
@@ -146,11 +146,11 @@ export function AppShell() {
           <Sidebar collapsed={!sidebarOpen} />
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           <div className="px-4 pt-3">
             <TabBar />
           </div>
-          <div className="flex-1 overflow-hidden px-4 pb-4">
+          <div className="flex-1 min-h-0 overflow-hidden px-4 pb-4">
             <div className="h-full rounded-2xl bg-[#0a0f1a] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_rgba(3,7,18,0.35)] overflow-hidden transition-all">
               <MainContent />
             </div>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Maximize2, Download } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
+import { ClientErrorBoundary } from '@/components/common/client-error-boundary';
 import { ChartModal } from './chart-modal';
 
 const VegaLite = dynamic(() => import('react-vega').then((mod) => mod.VegaLite), {
@@ -89,8 +90,8 @@ const addInteractivity = (spec: Record<string, unknown>) => {
         next.encoding.radius ??
         ({
           condition: [
-            { param: 'hover', value: baseRadius + 12 },
-            { param: 'select', value: baseRadius + 8 },
+            { param: 'hover', value: baseRadius + 18 },
+            { param: 'select', value: baseRadius + 12 },
           ],
           value: baseRadius,
         } as any);
@@ -100,12 +101,22 @@ const addInteractivity = (spec: Record<string, unknown>) => {
           next.encoding.radius2 ??
           ({
             condition: [
-              { param: 'hover', value: Math.max(innerRadius - 6, 0) },
-              { param: 'select', value: Math.max(innerRadius - 4, 0) },
+              { param: 'hover', value: Math.max(innerRadius - 10, 0) },
+              { param: 'select', value: Math.max(innerRadius - 6, 0) },
             ],
             value: innerRadius,
           } as any);
       }
+
+      next.encoding.offset =
+        next.encoding.offset ??
+        ({
+          condition: [
+            { param: 'hover', value: 14 },
+            { param: 'select', value: 10 },
+          ],
+          value: 0,
+        } as any);
     }
 
     if (markType && ['point', 'circle', 'square'].includes(markType) && !next.encoding.size) {
@@ -133,9 +144,13 @@ export function ChartWrapper({ spec, title }: ChartWrapperProps) {
   const interactiveSpec = useMemo(() => addInteractivity(spec), [spec]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl overflow-hidden group transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(2,6,23,0.45)]">
+    <div className="relative isolate rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl overflow-hidden group transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:z-10 hover:shadow-[0_16px_40px_rgba(2,6,23,0.45)]">
       <div className="aspect-[4/3] bg-black/30 flex items-center justify-center relative">
-        <VegaLite spec={interactiveSpec} actions={false} />
+        <ClientErrorBoundary
+          fallback={<div className="text-xs text-white/60">Chart unavailable</div>}
+        >
+          <VegaLite spec={interactiveSpec} actions={false} />
+        </ClientErrorBoundary>
         <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button size="sm" variant="outline" className="gap-1" onClick={() => setExpanded(true)}>
             <Maximize2 className="h-3.5 w-3.5" />

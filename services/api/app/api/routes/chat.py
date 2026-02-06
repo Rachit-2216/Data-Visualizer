@@ -15,22 +15,28 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 def chat(request: ChatRequest, user=Depends(get_current_user)):
     settings = get_settings()
-    if not settings.gemini_api_key:
-        raise HTTPException(status_code=400, detail="Missing GEMINI_API_KEY")
+    if not settings.groq_api_key:
+        raise HTTPException(status_code=400, detail="Missing GROQ_API_KEY")
 
     try:
-        import google.generativeai as genai
+        from groq import Groq
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Gemini client missing: {exc}")
+        raise HTTPException(status_code=500, detail=f"Groq client missing: {exc}")
 
     prompt = "You are DataCanvas AI. Answer with concise analysis.\n"
     if request.dataset_context:
         prompt += f"Dataset context: {json.dumps(request.dataset_context)[:4000]}\n"
     prompt += f"User: {request.message}"
 
-    genai.configure(api_key=settings.gemini_api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    response = model.generate_content(prompt)
-
-    content = response.text if hasattr(response, "text") else str(response)
+    client = Groq(api_key=settings.groq_api_key)
+    response = client.chat.completions.create(
+        model=settings.groq_model,
+        messages=[
+            {"role": "system", "content": "You are DataCanvas AI. Answer with concise analysis."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=800,
+        temperature=0.7,
+    )
+    content = response.choices[0].message.content.strip()
     return {"response": content}

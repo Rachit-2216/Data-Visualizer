@@ -25,7 +25,7 @@ export function AssistantPanel({ collapsed = false }: { collapsed?: boolean }) {
 
   useEffect(() => {
     refreshSuggestions();
-    initializeFromSupabase();
+    void initializeFromSupabase().catch(() => {});
   }, [initializeFromSupabase, refreshSuggestions]);
 
   if (collapsed) {

@@ -2,6 +2,8 @@ export type LayerType =
   | 'Input'
   | 'Linear'
   | 'Conv2d'
+  | 'MaxPool2d'
+  | 'AvgPool2d'
   | 'LSTM'
   | 'Dropout'
   | 'Flatten'

@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 
 from app.middleware.auth import get_current_user, require_auth, AuthenticatedUser
 from app.models.schemas import ChatMessage, ConversationCreate
-from app.services.gemini import gemini_service
+from app.services.groq_service import groq_service
 from app.services.supabase import supabase_service
 
 
@@ -49,8 +49,8 @@ async def send_message(
     message: ChatMessage,
     user: AuthenticatedUser = Depends(require_auth),
 ):
-    if not gemini_service:
-        raise HTTPException(status_code=503, detail="Gemini service not configured")
+    if not groq_service.is_configured:
+        raise HTTPException(status_code=503, detail="Groq service not configured")
 
     async def generate():
         try:
@@ -74,7 +74,7 @@ async def send_message(
             full_response = ""
             chart_spec = None
 
-            async for chunk in gemini_service.chat_stream(
+            async for chunk in groq_service.chat_stream(
                 message=message.content,
                 history=history,
                 dataset_context=dataset_context,
@@ -123,7 +123,7 @@ async def quick_chat(
                 except Exception:
                     dataset_context = None
 
-            async for chunk in gemini_service.chat_stream(
+            async for chunk in groq_service.chat_stream(
                 message=message.content,
                 history=[],
                 dataset_context=dataset_context,

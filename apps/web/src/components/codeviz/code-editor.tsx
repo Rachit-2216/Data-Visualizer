@@ -9,24 +9,36 @@ type CodeEditorProps = {
   value: string;
   language?: string;
   onChange: (value: string) => void;
+  height?: string | number;
 };
 
-export function CodeEditor({ value, language = 'python', onChange }: CodeEditorProps) {
+export function CodeEditor({
+  value,
+  language = 'python',
+  onChange,
+  height = '100%',
+}: CodeEditorProps) {
   const options = useMemo(
     () => ({
       fontSize: 12,
       minimap: { enabled: false },
-      wordWrap: 'on' as const,
+      wordWrap: 'off' as const,
       lineNumbers: 'on' as const,
       scrollBeyondLastLine: false,
       renderLineHighlight: 'all' as const,
+      automaticLayout: true,
+      scrollbar: {
+        vertical: 'visible' as const,
+        horizontal: 'visible' as const,
+        alwaysConsumeMouseWheel: true,
+      },
     }),
     []
   );
 
   return (
     <MonacoEditor
-      height="240px"
+      height={height}
       language={language}
       value={value}
       onChange={(next) => onChange(next ?? '')}
@@ -35,4 +47,3 @@ export function CodeEditor({ value, language = 'python', onChange }: CodeEditorP
     />
   );
 }
-

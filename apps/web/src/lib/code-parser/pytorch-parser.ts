@@ -27,7 +27,9 @@ const splitArgs = (args: string) => {
 
 const parseNumber = (value?: string) => {
   if (!value) return undefined;
-  const num = Number(value.replace(/[^0-9.-]/g, ''));
+  const match = value.match(/-?\d+(\.\d+)?/);
+  if (!match) return undefined;
+  const num = Number(match[0]);
   return Number.isFinite(num) ? num : undefined;
 };
 
@@ -35,6 +37,8 @@ const normalizeLayerType = (raw: string): LayerType => {
   switch (raw) {
     case 'Linear':
     case 'Conv2d':
+    case 'MaxPool2d':
+    case 'AvgPool2d':
     case 'LSTM':
     case 'Dropout':
     case 'BatchNorm1d':
@@ -65,25 +69,21 @@ export function parsePyTorchSequential(code: string, options: ParseOptions = {})
   const layers: LayerNode[] = [];
 
   const sequentialMatch = code.match(/nn\.Sequential\s*\(([\s\S]*?)\)\s*/m);
-  if (!sequentialMatch) {
-    return {
-      layers: [],
-      errors: ['No nn.Sequential block found.'],
-    };
-  }
-
-  const body = sequentialMatch[1];
+  const body = sequentialMatch ? sequentialMatch[1] : code;
   const lines = body
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith('#'));
+  if (!sequentialMatch) {
+    errors.push('No nn.Sequential block found. Parsed layer declarations instead.');
+  }
 
   let currentShape: Array<number | string> | undefined = options.inputSize
     ? [options.inputSize]
     : undefined;
 
   lines.forEach((line, index) => {
-    const match = line.match(/nn\.([A-Za-z0-9_]+)\((.*)\)\s*,?/);
+    const match = line.match(/(?:torch\.)?nn\.([A-Za-z0-9_]+)\((.*)\)\s*,?/);
     if (!match) return;
     const rawType = match[1];
     const args = splitArgs(match[2] ?? '');
@@ -122,6 +122,21 @@ export function parsePyTorchSequential(code: string, options: ParseOptions = {})
         }
       } else if (outChannels) {
         currentShape = [outChannels, 'H', 'W'];
+      }
+    } else if (type === 'MaxPool2d' || type === 'AvgPool2d') {
+      const kernelSize = parseNumber(args[0]) ?? 2;
+      const stride = parseNumber(args[1]) ?? kernelSize;
+      if (currentShape && currentShape.length >= 3) {
+        const channels = currentShape[0];
+        const height = Number(currentShape[1]);
+        const width = Number(currentShape[2]);
+        if (Number.isFinite(height) && Number.isFinite(width)) {
+          const outH = Math.floor((height - kernelSize) / stride) + 1;
+          const outW = Math.floor((width - kernelSize) / stride) + 1;
+          currentShape = [channels, outH, outW];
+        } else {
+          currentShape = [channels, 'H', 'W'];
+        }
       }
     } else if (type === 'LSTM') {
       const inputSize = parseNumber(args[0]);
