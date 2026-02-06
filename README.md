@@ -1,5 +1,11 @@
 # DataCanvas
 
+![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.1+-009688)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ECF8E)
+![Groq](https://img.shields.io/badge/Groq-LLM-FF4F00)
+
 No‑code dataset visualizer and ML playground with a VS Code‑style workspace.
 
 **Stack:** Next.js 14, FastAPI, Supabase (Postgres/Auth/Storage), Groq (LLM), Polars/Pandas (profiling), Three.js (3D UI).
@@ -143,6 +149,13 @@ Add screenshots here later:
 - `docs/screenshots/landing.png`
 - `docs/screenshots/workspace.png`
 - `docs/screenshots/codeviz.png`
+
+Example markup (replace with real images):
+```
+![Landing](docs/screenshots/landing.png)
+![Workspace](docs/screenshots/workspace.png)
+![CodeViz](docs/screenshots/codeviz.png)
+```
 
 ---
 
