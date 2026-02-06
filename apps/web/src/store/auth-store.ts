@@ -3,7 +3,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
+import { createClientOptional } from '@/lib/supabase/client';
+import { clearOfflinePersistedState, isOfflineMode } from '@/lib/offline/mode';
 import { apiClient } from '@/lib/api-client';
 
 type AuthState = {
@@ -33,28 +34,64 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       demoBannerDismissed: false,
       initialize: async () => {
-        set({ isLoading: true });
-        const supabase = createClient();
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-        apiClient.setToken(session?.access_token ?? null);
-        set({
-          user: session?.user ?? null,
-          isLoading: false,
-          isInitialized: true,
-          error: error?.message ?? null,
-        });
-        supabase.auth.onAuthStateChange((_event, session) => {
+        set({ isLoading: true, error: null });
+        try {
+          if (isOfflineMode()) {
+            clearOfflinePersistedState();
+            apiClient.setToken(null);
+            set({
+              user: null,
+              isLoading: false,
+              isInitialized: true,
+              error: null,
+            });
+            return;
+          }
+          const supabase = createClientOptional();
+          if (!supabase) {
+            apiClient.setToken(null);
+            set({
+              user: null,
+              isLoading: false,
+              isInitialized: true,
+              error: null,
+            });
+            return;
+          }
+          const {
+            data: { session },
+            error,
+          } = await supabase.auth.getSession();
           apiClient.setToken(session?.access_token ?? null);
-          set({ user: session?.user ?? null });
-        });
+          set({
+            user: session?.user ?? null,
+            isLoading: false,
+            isInitialized: true,
+            error: error?.message ?? null,
+          });
+          supabase.auth.onAuthStateChange((_event, nextSession) => {
+            apiClient.setToken(nextSession?.access_token ?? null);
+            set({ user: nextSession?.user ?? null });
+          });
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to initialize auth';
+          apiClient.setToken(null);
+          set({
+            user: null,
+            isLoading: false,
+            isInitialized: true,
+            error: message,
+          });
+        }
       },
       signIn: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const supabase = createClient();
+          const supabase = createClientOptional();
+          if (!supabase) {
+            throw new Error('Supabase is not configured.');
+          }
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -73,7 +110,10 @@ export const useAuthStore = create<AuthState>()(
       signUp: async (email, password, options) => {
         set({ isLoading: true, error: null });
         try {
-          const supabase = createClient();
+          const supabase = createClientOptional();
+          if (!supabase) {
+            throw new Error('Supabase is not configured.');
+          }
           const { error } = await supabase.auth.signUp({
             email,
             password,
@@ -94,10 +134,19 @@ export const useAuthStore = create<AuthState>()(
       },
       signOut: async () => {
         set({ isLoading: true });
-        const supabase = createClient();
-        await supabase.auth.signOut();
-        apiClient.setToken(null);
-        set({ user: null, isLoading: false });
+        try {
+          const supabase = createClientOptional();
+          if (supabase) {
+            await supabase.auth.signOut();
+          }
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to sign out';
+          set({ error: message });
+        } finally {
+          apiClient.setToken(null);
+          set({ user: null, isLoading: false });
+        }
       },
       clearError: () => {
         set({ error: null });

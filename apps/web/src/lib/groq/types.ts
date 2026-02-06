@@ -12,17 +12,7 @@ export type ChatRequestPayload = {
   message: string;
   datasetContext?: DatasetContext | null;
   conversationId?: string | null;
-  model?:
-    | 'gemini-2.5-flash'
-    | 'gemini-2.5-pro'
-    | 'gemini-2.0-flash'
-    | 'gemini-2.0-flash-001'
-    | 'gemini-2.0-flash-lite'
-    | 'gemini-2.0-flash-lite-001'
-    | 'gemini-flash-latest'
-    | 'gemini-flash-lite-latest'
-    | 'gemini-pro-latest'
-    | `models/${string}`;
+  model?: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 };
 

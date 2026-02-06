@@ -1,6 +1,6 @@
 'use client';
 
-import { createClient } from '@/lib/supabase/client';
+import { createClientOptional } from '@/lib/supabase/client';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:8001';
@@ -47,7 +47,10 @@ class ApiClient {
     }
 
     try {
-      const supabase = createClient();
+      const supabase = createClientOptional();
+      if (!supabase) {
+        return null;
+      }
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -74,10 +77,18 @@ class ApiClient {
   }
 
   async fetchRaw(endpoint: string, options: RequestInit = {}) {
-    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    const hasBody = !!options.body && !(options.body instanceof FormData);
-    const headers = await this.buildHeaders(options, hasBody ? 'application/json' : undefined);
-    return fetch(url, { ...options, headers });
+    try {
+      const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+      const hasBody = !!options.body && !(options.body instanceof FormData);
+      const headers = await this.buildHeaders(options, hasBody ? 'application/json' : undefined);
+      return await fetch(url, { ...options, headers });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return new Response(JSON.stringify({ detail: message, code: 'NETWORK_ERROR' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   async requestJson<T>(endpoint: string, options: RequestInit = {}) {

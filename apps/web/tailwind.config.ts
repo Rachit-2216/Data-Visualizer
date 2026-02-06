@@ -198,6 +198,8 @@ const config: Config = {
         'aurora-wave': 'aurora-wave 8s ease-in-out infinite',
         'gradient-rotate': 'gradient-rotate 45s ease infinite',
         'float': 'float 6s ease-in-out infinite',
+        'float-slow': 'float 20s ease-in-out infinite',
+        'float-fast': 'float 10s ease-in-out infinite',
         'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
         'odometer': 'odometer 0.6s ease-out forwards',
         'light-sweep': 'light-sweep 0.6s ease-out',

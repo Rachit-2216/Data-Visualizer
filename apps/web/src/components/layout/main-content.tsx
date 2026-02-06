@@ -21,7 +21,7 @@ export function MainContent() {
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-transparent">
+    <div className="h-full min-h-0 overflow-auto bg-transparent">
       {activeTab.type === 'overview' && <OverviewTab />}
       {activeTab.type === 'data' && <DataTab />}
       {activeTab.type === 'visuals' && <VisualsTab />}

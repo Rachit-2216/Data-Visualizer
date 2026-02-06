@@ -2,9 +2,10 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createClient } from '@/lib/supabase/client';
+import { createClientOptional } from '@/lib/supabase/client';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { isUuid } from '@/lib/utils';
+import { isOfflineMode } from '@/lib/offline/mode';
 
 export type SavedChart = {
   id: string;
@@ -65,10 +66,13 @@ export const useVisualsStore = create<VisualsState>()(
         if (!isUuid(projectId)) return;
         set({ isLoading: true, error: null });
         try {
-          const supabase = createClient();
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+          if (isOfflineMode()) {
+            set({ isLoading: false });
+            return;
+          }
+          const supabase = createClientOptional();
+          const user =
+            supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
           if (!user) {
             set({ isLoading: false });
             return;
@@ -95,10 +99,9 @@ export const useVisualsStore = create<VisualsState>()(
         };
 
         try {
-          const supabase = createClient();
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+          const supabase = createClientOptional();
+          const user =
+            supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
 
           if (user && options?.projectId && isUuid(options.projectId)) {
             const response = await apiClient.saveVisualization({
