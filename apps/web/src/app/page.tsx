@@ -6,7 +6,6 @@ import {
   Navbar,
   HeroSection,
   FeatureShowcase,
-  StatsSection,
   HowItWorksSection,
   CTASection,
   Footer,
@@ -29,7 +28,6 @@ function LandingPageContent() {
       <Navbar />
       <HeroSection scrollProgress={scrollProgress} />
       <FeatureShowcase />
-      <StatsSection />
       <HowItWorksSection />
       <CTASection />
       <Footer />

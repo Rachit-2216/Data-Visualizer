@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     }),
   });
 
-  if (!response.ok || !response.body) {
+  const responseBody = response.body;
+  if (!response.ok || !responseBody) {
     const text = await response.text();
     const hint = response.status === 429 ? 'Rate limit reached. Try again later.' : 'Check GROQ_API_KEY and model name.';
     return new Response(JSON.stringify({ error: `${text || 'Groq request failed'}. ${hint}` }), {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       let fullText = '';
       try {
-        const reader = response.body.getReader();
+        const reader = responseBody.getReader();
         let buffer = '';
         while (true) {
           const { value, done } = await reader.read();

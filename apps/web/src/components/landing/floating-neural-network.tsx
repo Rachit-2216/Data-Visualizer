@@ -2,6 +2,7 @@
 
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 
 type LayerConfig = {
@@ -93,16 +94,16 @@ export function FloatingNeuralNetwork({
         </mesh>
       ))}
 
-      {connections.map((conn, idx) => {
-        const points = [conn.start, conn.end];
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-
-        return (
-          <line key={idx} geometry={lineGeometry}>
-            <lineBasicMaterial color="#475569" transparent opacity={0.4} />
-          </line>
-        );
-      })}
+      {connections.map((conn, idx) => (
+        <Line
+          key={idx}
+          points={[conn.start, conn.end]}
+          color="#475569"
+          transparent
+          opacity={0.4}
+          lineWidth={1}
+        />
+      ))}
 
       <DataFlowParticles connections={connections} />
     </group>

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { BarChart3, Code2, MessageSquare, Sparkles, ArrowRight } from 'lucide-react';
 import { FeaturePreview, ChartPreview, CodePreview, AIPreview, DashboardPreview } from './feature-preview';
+import { PinnedSectionFixed } from './pinned-section-fixed';
 
 const FEATURES = [
   {
@@ -50,55 +50,36 @@ const FEATURES = [
 
 export function FeatureShowcase() {
   const [activeFeature, setActiveFeature] = useState(0);
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const pinnedRef = useRef<HTMLDivElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!sectionRef.current || !pinnedRef.current || !featuresRef.current) return;
+    if (!featuresRef.current) return;
+    const cards = featuresRef.current.querySelectorAll<HTMLElement>('.feature-card');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = entry.target as HTMLElement;
+            const index = Number(target.dataset.index ?? 0);
+            setActiveFeature(index);
+          }
+        });
+      },
+      { threshold: 0.6 },
+    );
 
-    const featureCards = featuresRef.current.querySelectorAll('.feature-card');
-
-    const pinTrigger = ScrollTrigger.create({
-      trigger: sectionRef.current,
-      start: 'top top',
-      end: 'bottom bottom',
-      pin: pinnedRef.current,
-      pinSpacing: false,
-    });
-
-    featureCards.forEach((card, index) => {
-      ScrollTrigger.create({
-        trigger: card,
-        start: 'top center',
-        end: 'bottom center',
-        onEnter: () => setActiveFeature(index),
-        onEnterBack: () => setActiveFeature(index),
-      });
-    });
-
-    return () => {
-      pinTrigger.kill();
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-    };
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
   }, []);
 
   return (
-    <section
-      ref={sectionRef}
+    <PinnedSectionFixed
       id="features"
-      className="relative bg-[#030712]"
-      style={{ height: `${(FEATURES.length + 1) * 100}vh` }}
-    >
-      <div className="sticky top-0 h-screen flex">
-        <div
-          ref={pinnedRef}
-          className="w-1/2 h-screen flex items-center justify-center p-8 border-r border-white/5"
-        >
-          <FeaturePreview activeFeature={activeFeature} features={FEATURES} />
-        </div>
-
-        <div ref={featuresRef} className="w-1/2">
+      pinnedOnLeft
+      minHeight={`${(FEATURES.length + 1) * 100}vh`}
+      pinnedContent={<FeaturePreview activeFeature={activeFeature} features={FEATURES} />}
+      scrollingContent={
+        <div ref={featuresRef}>
           {FEATURES.map((feature, index) => {
             const Icon = feature.icon;
             const isActive = index === activeFeature;
@@ -106,6 +87,7 @@ export function FeatureShowcase() {
             return (
               <div
                 key={feature.id}
+                data-index={index}
                 className={`feature-card h-screen flex items-center justify-center p-12 transition-opacity duration-500 ${
                   isActive ? 'opacity-100' : 'opacity-40'
                 }`}
@@ -136,7 +118,7 @@ export function FeatureShowcase() {
             );
           })}
         </div>
-      </div>
-    </section>
+      }
+    />
   );
 }

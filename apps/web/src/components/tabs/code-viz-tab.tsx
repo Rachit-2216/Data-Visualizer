@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlertTriangle, Code2, Layers, Mountain, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDatasetStore } from '@/store/dataset-store';
+import { useProjectStore } from '@/store/project-store';
 import { useCodeVizStore, selectLayerById, type ModelType } from '@/store/codeviz-store';
 import { parsePyTorchSequential } from '@/lib/code-parser/pytorch-parser';
 import { parseTensorflowModel } from '@/lib/code-parser/tensorflow-parser';
@@ -176,8 +177,8 @@ const resolveFramework = (code: string) =>
 const resolveApiStyle = (code: string) => (code.includes('def forward') ? 'functional' : 'sequential');
 
 export function CodeVizTab() {
-  const { currentProjectId, datasetsByProject, currentDatasetId, currentDatasetVersionId } =
-    useDatasetStore();
+  const { currentProjectId } = useProjectStore();
+  const { datasetsByProject, currentDatasetId, currentDatasetVersionId } = useDatasetStore();
   const datasetVersionId = isUuid(currentDatasetVersionId)
     ? currentDatasetVersionId ?? undefined
     : undefined;
@@ -495,7 +496,7 @@ export function CodeVizTab() {
                           <span className="text-xs text-white/40">{layer.type}</span>
                         </div>
                         <div className="text-xs text-white/40">
-                          {layer.inputShape ?? ''} -> {layer.outputShape ?? ''}
+                          {layer.inputShape ?? ''} {'->'} {layer.outputShape ?? ''}
                         </div>
                         <div className="mt-2 flex items-center gap-2 text-[10px] text-white/40">
                           <span>Drag to reorder:</span>

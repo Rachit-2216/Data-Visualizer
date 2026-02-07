@@ -1,24 +1,44 @@
 # DataCanvas
 
-![License](https://img.shields.io/badge/license-MIT-brightgreen)
-![Next.js](https://img.shields.io/badge/Next.js-14-black)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.1+-009688)
-![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ECF8E)
-![Groq](https://img.shields.io/badge/Groq-LLM-FF4F00)
+<p align="center">
+  <img alt="DataCanvas" src="https://img.shields.io/badge/DataCanvas-Workspace-0ea5e9?style=for-the-badge" />
+</p>
 
-No‑code dataset visualizer and ML playground with a VS Code‑style workspace.
+<p align="center">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs&logoColor=white" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi&logoColor=white" />
+  <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ECF8E?logo=supabase&logoColor=white" />
+  <img alt="Groq" src="https://img.shields.io/badge/Groq-Llama%203.1%2070B-FF4F00" />
+  <img alt="Three.js" src="https://img.shields.io/badge/Three.js-3D%20UI-000000?logo=three.js&logoColor=white" />
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Services-2496ED?logo=docker&logoColor=white" />
+</p>
 
-**Stack:** Next.js 14, FastAPI, Supabase (Postgres/Auth/Storage), Groq (LLM), Polars/Pandas (profiling), Three.js (3D UI).
+No-code dataset visualizer and ML playground with a VS Code style workspace. Upload data, explore auto-generated visuals, and ask the AI assistant for insights and chart specs.
 
 ---
 
 ## Highlights
 
-- Upload CSV/TSV/JSON/Parquet/XLSX and get instant profiling + visuals
-- Interactive charts + expandable modals
-- AI assistant (Groq) with chart generation
+- Upload CSV, TSV, JSON, Parquet, XLSX
+- Automatic profiling and visualization generation
+- Interactive charts with expand and export
 - CodeViz tab for ML architecture visualization (2D/3D)
-- Demo mode + offline fallback (no Supabase required)
+- AI assistant via Groq with streaming responses
+- Demo and offline fallback without Supabase
+- Modular backend services: API gateway, profiler, ML service
+
+---
+
+## Architecture
+
+```
+Next.js (apps/web)
+  -> FastAPI Gateway (services/api)
+       -> Supabase (Postgres + Auth + Storage)
+       -> Profiler (services/profiler)
+       -> ML Service (services/ml)
+       -> Groq (LLM)
+```
 
 ---
 
@@ -41,17 +61,26 @@ supabase/
 
 ## Quick Start
 
-### 1) Install
+### Prerequisites
+
+- Node.js 18 or 20
+- pnpm 9+
+- Docker Desktop (for API + profiler)
+
+### Install
+
 ```
 pnpm install
 ```
 
-### 2) Frontend
+### Frontend (Next.js)
+
 ```
 pnpm -C apps/web dev
 ```
 
-### 3) API + Profiler
+### API + Profiler
+
 ```
 cd services/api
 docker compose up --build
@@ -66,17 +95,20 @@ docker compose up --build
 
 ## Environment Variables
 
-Never commit real secrets. Use `.env.example` and `.env.local.example`.
+Never commit real secrets. Use the example files and set your own values.
 
 ### Frontend (`apps/web/.env.local`)
+
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_API_URL=http://localhost:8000
 GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-70b-versatile
 ```
 
 ### API (`services/api/.env`)
+
 ```
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
@@ -89,6 +121,7 @@ GROQ_MODEL=llama-3.1-70b-versatile
 ```
 
 ### Profiler (`services/profiler/.env`)
+
 ```
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
@@ -97,32 +130,46 @@ SUPABASE_DATASETS_BUCKET=datasets
 
 ---
 
-## Offline / Demo Mode
+## Offline and Demo Mode
 
-If Supabase env vars are not configured, DataCanvas auto‑falls back to offline mode:
-- Projects and datasets are stored in local storage.
-- Uploads are parsed locally (CSV/TSV/JSON/XLSX and Parquet via DuckDB WASM).
-- Profiles and charts are generated client‑side.
+If Supabase env vars are not configured, DataCanvas falls back to offline mode:
 
-This is ideal for Vercel preview deployments or public demos without a database.
+- Projects and datasets are stored in local storage
+- Uploads are parsed locally (CSV, TSV, JSON, XLSX, and Parquet via DuckDB WASM)
+- Profiles and charts are generated client-side
+
+This is ideal for public demos or Vercel previews without a database.
 
 ---
 
 ## Supported File Types
 
-- CSV
+- CSV (large files are sampled for responsiveness)
 - TSV
 - JSON (array of objects)
 - Parquet
 - XLSX / XLS
 
-Large files are auto‑sampled to keep UI responsive.
+For very large datasets, use the backend profiler for full analysis.
+
+---
+
+## Landing Page Media
+
+The landing page hero references a space travel video:
+
+```
+apps/web/public/media/space-jump.mp4
+```
+
+This should be an 8-10s loopable MP4.
 
 ---
 
 ## Scripts
 
 ### Frontend
+
 ```
 pnpm -C apps/web dev
 pnpm -C apps/web build
@@ -130,12 +177,14 @@ pnpm -C apps/web start
 ```
 
 ### API
+
 ```
 cd services/api
 docker compose up --build
 ```
 
 ### Profiler
+
 ```
 cd services/profiler
 docker compose up --build
@@ -143,14 +192,26 @@ docker compose up --build
 
 ---
 
+## Deployment Notes
+
+- Frontend: Vercel
+- Backend: Docker host (Railway, Fly.io, or VPS)
+- Public demo: use offline fallback and disable Supabase endpoints
+
+---
+
 ## Screenshots
 
 Add screenshots here later:
-- `docs/screenshots/landing.png`
-- `docs/screenshots/workspace.png`
-- `docs/screenshots/codeviz.png`
 
-Example markup (replace with real images):
+```
+docs/screenshots/landing.png
+docs/screenshots/workspace.png
+docs/screenshots/codeviz.png
+```
+
+Example:
+
 ```
 ![Landing](docs/screenshots/landing.png)
 ![Workspace](docs/screenshots/workspace.png)
@@ -163,7 +224,7 @@ Example markup (replace with real images):
 
 1. Fork the repo
 2. Create a branch
-3. PR with a clear description and screenshots if UI‑related
+3. Submit a PR with a clear description and screenshots if UI-related
 
 ---
 
