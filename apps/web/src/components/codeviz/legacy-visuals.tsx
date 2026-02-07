@@ -304,7 +304,8 @@ function KMeansViz({ isAnimating, width, height, data }: CanvasProps) {
         ...centroids.map((c, i) => ({ ...c, type: 'centroid' as const, cluster: i })),
       ]
         .map((item) => {
-          const proj = project(item.x, item.y, item.z, rotY);
+          const z = (item as { z?: number }).z ?? 0;
+          const proj = project(item.x, item.y, z, rotY);
           return { ...item, ...proj };
         })
         .filter((item) => isFinitePoint(item))

@@ -111,7 +111,7 @@ const parseXlsx = async (file: File): Promise<ParsedDataset> => {
 };
 
 const parseParquet = async (file: File): Promise<ParsedDataset> => {
-  const duckdb = await import('@duckdb/duckdb-wasm');
+  const duckdb = await import('@duckdb/duckdb-wasm/dist/duckdb-browser.mjs');
   const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
   const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
   const worker = new Worker(bundle.mainWorker!);

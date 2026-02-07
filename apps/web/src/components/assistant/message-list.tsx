@@ -32,7 +32,7 @@ export function MessageList({
     <div className="space-y-4">
       {messages.length === 0 && (
         <div className="rounded-lg bg-white/5 p-4 text-sm text-white/70">
-          Hi! I'm your data assistant. Ask me to create charts or analyze your dataset.
+          Hi! I&apos;m your data assistant. Ask me to create charts or analyze your dataset.
         </div>
       )}
       {messages.map((message) => (

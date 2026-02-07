@@ -81,6 +81,7 @@ export function ScrollProvider({ children }: ScrollProviderProps) {
         };
       },
     });
+    ScrollTrigger.defaults({ scroller: document.body });
 
     ScrollTrigger.addEventListener('refresh', () => lenis.resize());
     setIsReady(true);

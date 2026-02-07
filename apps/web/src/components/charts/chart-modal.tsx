@@ -56,10 +56,10 @@ const extractRows = (spec: Record<string, any>) => {
 const toCsv = (rows: Array<Record<string, any>>) => {
   if (rows.length === 0) return '';
   const headers = Array.from(
-    rows.reduce((set, row) => {
+    rows.reduce<Set<string>>((set, row) => {
       Object.keys(row).forEach((key) => set.add(key));
       return set;
-    }, new Set<string>())
+    }, new Set<string>()),
   );
 
   const escapeValue = (value: unknown) => {

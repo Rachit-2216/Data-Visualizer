@@ -149,7 +149,7 @@ export function parsePyTorchSequential(code: string, options: ParseOptions = {})
       if (prob !== undefined) params.p = prob;
     } else if (type === 'Flatten') {
       if (currentShape && currentShape.length > 1) {
-        const flat = currentShape.reduce((acc, val) => {
+        const flat = currentShape.reduce<number>((acc, val) => {
           const num = Number(val);
           return Number.isFinite(num) ? acc * num : acc;
         }, 1);

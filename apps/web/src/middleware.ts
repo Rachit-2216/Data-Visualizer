@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/dashboard') {
@@ -7,7 +6,7 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/workspace';
     return NextResponse.redirect(url, 301);
   }
-  return await updateSession(request);
+  return NextResponse.next();
 }
 
 export const config = {
