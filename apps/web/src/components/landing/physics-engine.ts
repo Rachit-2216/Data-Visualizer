@@ -30,22 +30,22 @@ export const DEFAULT_MESH_CONFIG: MeshPhysicsConfig = {
   height: 60,
   widthSegments: 50,
   heightSegments: 30,
-  springStiffness: 0.18,
-  damping: 0.965,
-  cursorMass: 28,
-  maxStretch: 8,
-  cursorRadius: 18,
-  minDistance: 6,
+  springStiffness: 0.2,
+  damping: 0.955,
+  cursorMass: 70,
+  maxStretch: 14,
+  cursorRadius: 36,
+  minDistance: 5,
 };
 
 export const DEFAULT_PARTICLE_CONFIG: ParticlePhysicsConfig = {
   count: 8000,
   spread: { x: 120, y: 70, z: 80 },
-  cursorInfluence: 0.6,
-  drag: 0.985,
+  cursorInfluence: 0.45,
+  drag: 0.986,
   mass: 0.12,
-  restore: 0.04,
-  radius: 30,
+  restore: 0.035,
+  radius: 40,
 };
 
 export function calculateCursorForce(

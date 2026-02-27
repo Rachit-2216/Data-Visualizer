@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type Lenis from 'lenis';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -8,13 +9,29 @@ type ScrollAcceleratorOptions = {
   triggerRef: React.RefObject<HTMLElement>;
   videoRef?: React.RefObject<HTMLVideoElement>;
   onProgress?: (progress: number, velocity: number) => void;
+  lenis?: Lenis | null;
+  peakTimeSeconds?: number;
+  autoStart?: number;
+  autoEnd?: number;
 };
 
-export function useScrollAccelerator({ triggerRef, videoRef, onProgress }: ScrollAcceleratorOptions) {
+export function useScrollAccelerator({
+  triggerRef,
+  videoRef,
+  onProgress,
+  lenis,
+  peakTimeSeconds = 0.8,
+  autoStart = 0.12,
+  autoEnd = 1.0,
+}: ScrollAcceleratorOptions) {
   const progressRef = useRef(0);
   const velocityRef = useRef(0);
   const targetRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const triggerRefInternal = useRef<ScrollTrigger | null>(null);
+  const autoActiveRef = useRef(false);
+  const lastInputRef = useRef(0);
+  const directionRef = useRef(1);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -23,14 +40,25 @@ export function useScrollAccelerator({ triggerRef, videoRef, onProgress }: Scrol
     const trigger = ScrollTrigger.create({
       trigger: triggerRef.current,
       start: 'top top',
-      end: '+=200%',
+      end: '+=260%',
       pin: true,
       scrub: false,
       anticipatePin: 1,
       onUpdate: (self) => {
         targetRef.current = self.progress;
+        directionRef.current = self.direction || 1;
+        lastInputRef.current = performance.now();
+
+        if (!autoActiveRef.current && self.progress >= autoStart && self.direction > 0) {
+          autoActiveRef.current = true;
+        }
+
+        if (self.progress <= 0.05 && self.direction < 0) {
+          autoActiveRef.current = false;
+        }
       },
     });
+    triggerRefInternal.current = trigger;
     const refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 100);
 
     let lastTime = performance.now();
@@ -40,35 +68,87 @@ export function useScrollAccelerator({ triggerRef, videoRef, onProgress }: Scrol
       lastTime = time;
 
       const target = targetRef.current;
-      const progress = progressRef.current;
-      const velocity = velocityRef.current;
+      let progress = progressRef.current;
+      let velocity = velocityRef.current;
 
-      const accel = target > progress ? 2.5 : -1.8;
-      let nextVelocity = velocity + accel * delta;
-      nextVelocity = Math.max(Math.min(nextVelocity, 3), -2);
+      const autoActive = autoActiveRef.current;
+      const now = performance.now();
+      const userRecent = now - lastInputRef.current < 160;
 
-      let nextProgress = progress + nextVelocity * delta;
+      if (!autoActive) {
+        // Follow user scroll directly; do NOT drive scroll position.
+        progress = target;
+        velocity = 0;
+      } else {
+        const maxVelocity = 3.6;
+        const ease = 4.2;
+        const video = videoRef?.current;
+        const duration = video?.duration && Number.isFinite(video.duration) ? video.duration : 4;
+        const peakProgress = Math.min(autoEnd - 0.05, Math.max(autoStart + 0.05, peakTimeSeconds / duration));
 
-      if ((nextVelocity >= 0 && nextProgress > target) || (nextVelocity <= 0 && nextProgress < target)) {
-        nextProgress = target;
-        nextVelocity = 0;
+        const accelWindow = Math.max(0.001, peakProgress - autoStart);
+        const decelWindow = Math.max(0.001, autoEnd - peakProgress);
+
+        const normalized = progress < peakProgress
+          ? (progress - autoStart) / accelWindow
+          : (progress - peakProgress) / decelWindow;
+
+        const targetVelocity = progress < peakProgress
+          ? 0.8 + normalized * (maxVelocity - 0.8)
+          : maxVelocity - normalized * (maxVelocity - 1.0);
+
+        velocity += (targetVelocity - velocity) * ease * delta;
+        velocity = Math.max(velocity, 0);
+        progress += velocity * delta;
+
+        if (progress >= autoEnd) {
+          progress = autoEnd;
+          velocity = 0;
+          autoActiveRef.current = false;
+          targetRef.current = progress;
+        } else {
+          targetRef.current = progress;
+        }
+
+        if (directionRef.current < 0 && userRecent) {
+          autoActiveRef.current = false;
+        }
       }
 
-      progressRef.current = nextProgress;
-      velocityRef.current = nextVelocity;
+      progress = Math.max(0, Math.min(1, progress));
+      progressRef.current = progress;
+      velocityRef.current = velocity;
+
+      const triggerInstance = triggerRefInternal.current;
+      if (triggerInstance && triggerInstance.isActive && autoActiveRef.current) {
+        const scrollTarget = triggerInstance.start + (triggerInstance.end - triggerInstance.start) * progress;
+        if (lenis) {
+          lenis.scrollTo(scrollTarget, { immediate: true });
+        } else {
+          window.scrollTo(0, scrollTarget);
+        }
+      }
 
       const video = videoRef?.current;
-      if (video && video.duration) {
-        const targetTime = nextProgress * video.duration;
-        if (Math.abs(video.currentTime - targetTime) > 0.4) {
+      if (video && video.duration && triggerInstance?.isActive) {
+        const targetTime = progress * video.duration;
+        if (Math.abs(video.currentTime - targetTime) > 0.45) {
           video.currentTime = targetTime;
         }
 
-        const rate = Math.min(1 + Math.abs(nextVelocity) * 0.6, 3);
+        const rate = Math.min(1 + Math.abs(velocity) * 0.7, 3);
         video.playbackRate = rate;
+        const shouldPlay = progress > 0.01 && (autoActive || userRecent);
+        if (shouldPlay) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      } else if (video) {
+        video.pause();
       }
 
-      onProgress?.(nextProgress, nextVelocity);
+      onProgress?.(progress, velocity);
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -77,9 +157,10 @@ export function useScrollAccelerator({ triggerRef, videoRef, onProgress }: Scrol
     return () => {
       clearTimeout(refreshTimer);
       trigger.kill();
+      triggerRefInternal.current = null;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [triggerRef, videoRef, onProgress]);
+  }, [triggerRef, videoRef, onProgress, lenis, peakTimeSeconds, autoStart, autoEnd]);
 
   return { progressRef, velocityRef };
 }

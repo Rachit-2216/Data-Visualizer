@@ -65,7 +65,7 @@ export function FeatureShowcase() {
           }
         });
       },
-      { threshold: 0.6 },
+      { threshold: 0.55, rootMargin: '0px 0px -15% 0px' },
     );
 
     cards.forEach((card) => observer.observe(card));

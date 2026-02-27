@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DEFAULT_PARTICLE_CONFIG, ParticlePhysicsConfig } from './physics-engine';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -10,6 +10,7 @@ type ParticleFieldProps = {
   config?: Partial<ParticlePhysicsConfig>;
   warpProgress?: React.MutableRefObject<number>;
   velocityRef?: React.MutableRefObject<number>;
+  cursorRef?: React.MutableRefObject<THREE.Vector3>;
   color?: string;
 };
 
@@ -17,14 +18,14 @@ export function ParticleField({
   config = {},
   warpProgress,
   velocityRef,
+  cursorRef,
   color = '#38bfdb',
 }: ParticleFieldProps) {
   const reducedMotion = useReducedMotion();
   const merged = useMemo(() => ({ ...DEFAULT_PARTICLE_CONFIG, ...config }), [config]);
   const pointsRef = useRef<THREE.Points>(null);
-  const { raycaster, camera, pointer } = useThree();
-  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
-  const cursorWorld = useRef(new THREE.Vector3(0, 0, 0));
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const cursorWorld = cursorRef ?? useRef(new THREE.Vector3(0, 0, 0));
 
   const particles = useMemo(() => {
     const positions = new Float32Array(merged.count * 3);
@@ -50,13 +51,41 @@ export function ParticleField({
     return { positions, velocities, originals };
   }, [merged]);
 
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: `
+        uniform float uPointSize;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float size = uPointSize * (300.0 / -mv.z);
+          gl_PointSize = clamp(size, 1.0, 5.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uOpacity;
+        void main() {
+          vec2 c = gl_PointCoord - vec2(0.5);
+          float d = length(c);
+          if (d > 0.5) discard;
+          float alpha = smoothstep(0.5, 0.0, d);
+          gl_FragColor = vec4(uColor, alpha * uOpacity);
+        }
+      `,
+      uniforms: {
+        uPointSize: { value: 0.9 },
+        uColor: { value: new THREE.Color(color) },
+        uOpacity: { value: 0.3 },
+      },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }, [color]);
+
   useFrame((state, delta) => {
     if (!pointsRef.current) return;
-
-    if (!reducedMotion) {
-      raycaster.setFromCamera(pointer, camera);
-      raycaster.ray.intersectPlane(plane, cursorWorld.current);
-    }
 
     const warp = warpProgress?.current ?? 0;
     const velocity = velocityRef?.current ?? 0;
@@ -111,6 +140,10 @@ export function ParticleField({
     }
 
     pointsRef.current.geometry.attributes.position.needsUpdate = true;
+
+    if (materialRef.current) {
+      materialRef.current.uniforms.uPointSize.value = reducedMotion ? 0.7 : 0.9;
+    }
   });
 
   return (
@@ -123,14 +156,7 @@ export function ParticleField({
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial
-        size={1.8}
-        color={color}
-        transparent
-        opacity={0.55}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
+      <primitive object={material} ref={materialRef} attach="material" />
     </points>
   );
 }

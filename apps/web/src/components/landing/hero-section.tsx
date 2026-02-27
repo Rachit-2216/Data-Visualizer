@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, Play } from 'lucide-react';
 import { SpaceJumpVideo } from './space-jump-video';
 import { useScrollAccelerator } from './scroll-accelerator';
+import { useScroll } from './scroll-provider';
 import { Button } from '@/components/ui/button';
 
 type HeroSectionProps = {
@@ -19,17 +20,24 @@ const SpaceTimeScene = dynamic(
 
 export function HeroSection({ scrollProgress }: HeroSectionProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const [heroProgress, setHeroProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const warpRef = useRef(0);
   const velocityRef = useRef(0);
+  const { lenis } = useScroll();
+
+  const peakVideoTimeSeconds = 0.8;
 
   useScrollAccelerator({
     triggerRef: containerRef,
     videoRef,
+    lenis,
+    peakTimeSeconds: peakVideoTimeSeconds,
     onProgress: (progress, velocity) => {
       warpRef.current = progress;
       velocityRef.current = velocity;
+      setHeroProgress(progress);
     },
   });
 
@@ -38,15 +46,23 @@ export function HeroSection({ scrollProgress }: HeroSectionProps) {
     return () => clearTimeout(timer);
   }, []);
 
+  const clampedProgress = Math.min(1, Math.max(0, heroProgress));
+  const dissolveStyle = {
+    transform: `translateY(${-clampedProgress * 120}px)`,
+    opacity: 1 - clampedProgress * 0.8,
+    filter: `blur(${clampedProgress * 4}px)`,
+    willChange: 'transform, opacity, filter',
+  } as const;
+
   return (
     <section ref={containerRef} className="relative min-h-screen overflow-hidden">
       <SpaceJumpVideo className="z-0" videoRef={videoRef} />
       <SpaceTimeScene warpProgress={warpRef} velocityRef={velocityRef} />
 
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/70 via-black/20 to-black/80" />
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/55 via-black/10 to-black/70" />
 
       <div className="relative z-30 flex min-h-screen items-center justify-center">
-        <div className="max-w-4xl px-6 text-center">
+        <div className="max-w-4xl px-6 text-center" style={dissolveStyle}>
           <h1
             className={`
               text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6

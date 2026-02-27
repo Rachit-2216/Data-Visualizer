@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useMemo } from 'react';
 
 type PinnedSectionProps = {
   id: string;
@@ -19,40 +17,12 @@ export function PinnedSectionFixed({
   pinnedOnLeft = true,
   minHeight = '300vh',
 }: PinnedSectionProps) {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const pinnedRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!sectionRef.current || !pinnedRef.current) return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        pin: pinnedRef.current,
-        start: 'top top',
-        end: 'bottom bottom',
-        pinSpacing: false,
-        anticipatePin: 1,
-        markers: typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.search).has('debug')
-          : false,
-      });
-    }, sectionRef);
-
-    const timer = setTimeout(() => ScrollTrigger.refresh(), 100);
-
-    return () => {
-      clearTimeout(timer);
-      ctx.revert();
-    };
-  }, []);
+  const sectionStyle = useMemo(() => ({ minHeight }), [minHeight]);
 
   return (
-    <section ref={sectionRef} id={id} className="relative" style={{ minHeight }}>
-      <div className="flex" style={{ minHeight }}>
+    <section id={id} className="relative" style={sectionStyle}>
+      <div className="flex" style={sectionStyle}>
         <div
-          ref={pinnedRef}
           className={`sticky top-0 flex h-screen w-1/2 items-center justify-center ${
             pinnedOnLeft ? 'order-1' : 'order-2'
           }`}
