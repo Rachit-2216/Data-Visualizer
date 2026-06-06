@@ -210,8 +210,8 @@ export const useDatasetStore = create<DatasetState>()(
             };
           });
 
-          const merged = demoDatasets[projectId]
-            ? demoDatasets[projectId].concat(remoteDatasets)
+          const merged: Dataset[] = demoDatasets[projectId]
+            ? [...demoDatasets[projectId], ...remoteDatasets]
             : remoteDatasets;
           const nextDatasetId = get().currentDatasetId ?? merged[0]?.id ?? null;
           const currentDataset = merged.find((item) => item.id === nextDatasetId);

@@ -9,9 +9,9 @@
   <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Services-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" /></a>
 </p>
 
-No-code dataset visualizer and ML playground with a VS Code-style workspace.
+No-code dataset visualizer, AI analyst, and ML playground with a cinematic public frontend and a VS Code-style data workspace.
 
-Upload data, auto-generate profiles and visualizations, chat with AI for insights, and explore model behavior in interactive 2D/3D views.
+Upload messy datasets, profile them automatically, generate useful visualizations, ask questions in plain English, and run ML experiments without living inside another `Untitled-47.ipynb`.
 
 ---
 
@@ -19,6 +19,7 @@ Upload data, auto-generate profiles and visualizations, chat with AI for insight
 
 - [What This Project Does](#what-this-project-does)
 - [Core Features](#core-features)
+- [Public Landing Experience](#public-landing-experience)
 - [End-to-End Product Flow](#end-to-end-product-flow)
 - [Architecture](#architecture)
 - [Monorepo Structure](#monorepo-structure)
@@ -44,6 +45,7 @@ DataCanvas is built for users who want fast answers from data without manually w
 
 It combines:
 
+- A polished animated landing page for the public product story
 - An editor/workspace-style frontend for data work
 - A FastAPI backend for projects/datasets/chat/ML orchestration
 - Background profiling and ML services
@@ -61,7 +63,25 @@ It combines:
 - CodeViz with interactive model architecture, loss, and training views
 - AI assistant with streaming responses and chart-capable outputs
 - Demo/offline fallback mode when backend persistence is unavailable
-- 3D landing page effects (space-time mesh, scroll interactions, pinned sections)
+- Animated Chaos Lab landing page with Data Phoenix scrollytelling, hover reveals, and easter eggs
+
+---
+
+## Public Landing Experience
+
+The active public frontend lives in `apps/web/src/components/landing-v2` and is assembled from `apps/web/src/app/page.tsx`.
+
+The current landing concept is **DataCanvas Chaos Lab**:
+
+- Hero: kinetic editorial headline, cursor-reactive data constellation, suspicious dataset mockup, and "hover truth serum" copy reveals
+- Scroll story: a Data Phoenix carries one ugly file through the product loop while the scene, copy, preview cards, and progress rail move with scroll
+- Format wall: CSV, TSV, JSON, XLSX, and Parquet are treated as animated dataset suspects with distinct hover jokes
+- AI Analyst: prompt examples, chat-style answer preview, and product copy for natural-language data questions
+- ML Lab: model-training section for classification, regression, clustering, and readable metrics
+- Product proof: schema detection, missing value analysis, outliers, correlation maps, generated charts, AI explanations, ML experiments, and fallback sessions
+- Easter eggs: suspicious cell click messages, `misc` jokes, footer reveal copy, and Konami-code banner
+
+The current landing uses normal browser scrolling and Framer Motion-driven transforms rather than scroll hijacking.
 
 ---
 
@@ -96,6 +116,8 @@ apps/web (Next.js frontend)
 datacanvas/
   apps/
     web/                    # Next.js frontend
+      src/components/landing-v2/
+                              # current public Chaos Lab landing page
   services/
     api/                    # FastAPI gateway
     profiler/               # profiling worker service
@@ -117,8 +139,9 @@ Frontend:
 - TypeScript
 - Zustand
 - Tailwind + shadcn/ui
-- Three.js + React Three Fiber + Drei
-- GSAP + Lenis
+- Framer Motion
+- Three.js + React Three Fiber for lightweight visual scenes
+- lucide-react icons
 
 Backend:
 
@@ -345,7 +368,8 @@ Add your screenshots later under `docs/screenshots/`.
 
 Suggested files:
 
-- `docs/screenshots/landing.png`
+- `docs/screenshots/landing-chaos-lab.png`
+- `docs/screenshots/phoenix-scroll-story.png`
 - `docs/screenshots/workspace.png`
 - `docs/screenshots/visuals.png`
 - `docs/screenshots/codeviz.png`
@@ -354,7 +378,8 @@ Suggested files:
 Example markdown:
 
 ```md
-![Landing](docs/screenshots/landing.png)
+![Landing](docs/screenshots/landing-chaos-lab.png)
+![Phoenix Scroll Story](docs/screenshots/phoenix-scroll-story.png)
 ![Workspace](docs/screenshots/workspace.png)
 ![Visuals](docs/screenshots/visuals.png)
 ![CodeViz](docs/screenshots/codeviz.png)
