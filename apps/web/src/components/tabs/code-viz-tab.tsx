@@ -17,9 +17,6 @@ import { presetTemplates, baseExamples } from '@/components/codeviz/preset-templ
 import { VisualizationCanvas } from '@/components/codeviz/legacy-visuals';
 import { TrainingDashboard } from '@/components/codeviz/training-dashboard';
 import { ClientErrorBoundary } from '@/components/common/client-error-boundary';
-import { apiJson } from '@/lib/api-client';
-import { useAuthStore } from '@/store/auth-store';
-import { isUuid } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
 const vizTypes: Array<{ id: ModelType; name: string; desc: string }> = [
@@ -174,18 +171,12 @@ const resolveFramework = (code: string) =>
     ? 'keras'
     : 'pytorch';
 
-const resolveApiStyle = (code: string) => (code.includes('def forward') ? 'functional' : 'sequential');
-
 export function CodeVizTab() {
   const { currentProjectId } = useProjectStore();
-  const { datasetsByProject, currentDatasetId, currentDatasetVersionId } = useDatasetStore();
-  const datasetVersionId = isUuid(currentDatasetVersionId)
-    ? currentDatasetVersionId ?? undefined
-    : undefined;
+  const { datasetsByProject, currentDatasetId } = useDatasetStore();
   const dataset = currentProjectId
     ? (datasetsByProject[currentProjectId] ?? []).find((item) => item.id === currentDatasetId)
     : undefined;
-  const { user } = useAuthStore();
   const { inputSize, outputSize } = getDatasetDefaults(dataset);
   const { ref, size } = useCanvasSize();
   const [vizData, setVizData] = useState<Record<string, unknown> | null>(null);
@@ -275,17 +266,7 @@ export function CodeVizTab() {
     if (!isNeural) {
       setCode(baseExamples[modelType]);
       setParsed({ layers: [], errors: [] });
-      if (user) {
-        apiJson<Record<string, unknown>>('/api/visuals/simulate', {
-          method: 'POST',
-          body: JSON.stringify({
-            kind: modelType,
-            dataset_version_id: datasetVersionId,
-          }),
-        })
-          .then((data) => setVizData(data))
-          .catch(() => setVizData(null));
-      }
+      setVizData(null);
       return;
     }
     const preset = presetTemplates.find((item) => item.id === activePreset) ?? presetTemplates[0];
@@ -293,66 +274,27 @@ export function CodeVizTab() {
     setVizData(null);
   }, [
     activePreset,
-    datasetVersionId,
     inputSize,
     isNeural,
     modelType,
     outputSize,
     setCode,
     setParsed,
-    user,
   ]);
 
   useEffect(() => {
     if (!isNeural) return;
-    const handle = window.setTimeout(async () => {
+    const handle = window.setTimeout(() => {
       const localResult = parseLocal(code);
       applyParsed(localResult);
-
-      if (user) {
-        const framework = resolveFramework(code);
-        const apiStyle = resolveApiStyle(code);
-        try {
-          const remote = await apiJson<{ layers: Array<any>; errors: string[] }>('/api/code/parse', {
-            method: 'POST',
-            body: JSON.stringify({
-              code,
-              framework,
-              api_style: apiStyle,
-              input_size: inputSize,
-            }),
-          });
-          applyParsed(remote);
-        } catch {
-          // Keep local parse result when backend is offline.
-        }
-      }
     }, 500);
     return () => window.clearTimeout(handle);
-  }, [applyParsed, code, inputSize, isNeural, parseLocal, user]);
+  }, [applyParsed, code, isNeural, parseLocal]);
 
   const handleVisualize = () => {
     if (!isNeural) return;
     const localResult = parseLocal(code);
     applyParsed(localResult);
-
-    if (!user) return;
-
-    apiJson<{ layers: Array<any>; errors: string[] }>('/api/code/parse', {
-      method: 'POST',
-      body: JSON.stringify({
-        code,
-        framework: resolveFramework(code),
-        api_style: resolveApiStyle(code),
-        input_size: inputSize,
-      }),
-    })
-      .then((result) => {
-        applyParsed(result);
-      })
-      .catch(() => {
-        // Keep local parse if the backend is offline.
-      });
   };
 
   return (

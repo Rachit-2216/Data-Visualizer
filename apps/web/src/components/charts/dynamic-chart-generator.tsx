@@ -24,7 +24,7 @@ type ColumnMeta = ColumnSchema & {
 };
 
 type ChartRecommendation = {
-  type: 'bar' | 'line' | 'scatter' | 'histogram' | 'pie' | 'heatmap' | 'boxplot' | 'area';
+  type: 'bar' | 'line' | 'scatter' | 'histogram' | 'pie' | 'heatmap' | 'area';
   title: string;
   spec: Record<string, unknown>;
   priority: number;
@@ -343,24 +343,6 @@ function generateChartRecommendations(dataset: DatasetLike): ChartRecommendation
     });
 
     push({
-      type: 'boxplot',
-      title: `${col.name} Box Plot`,
-      priority: 86 - idx,
-      reason: 'Highlights spread and outliers',
-      spec: {
-        $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
-        width: 220,
-        height: 220,
-        data: { values: rows },
-        mark: { type: 'boxplot', extent: 1.5 },
-        encoding: {
-          y: { field: col.name, type: 'quantitative' },
-          color: { value: '#8b5cf6' },
-        },
-      },
-    });
-
-    push({
       type: 'line',
       title: `${col.name} Cumulative`,
       priority: 84 - idx,
@@ -472,13 +454,15 @@ function generateChartRecommendations(dataset: DatasetLike): ChartRecommendation
             height: 220,
             data: { values: rows },
             transform: [
-              { bin: { maxbins: 24 }, field: pair.col1.name, as: 'x' },
-              { bin: { maxbins: 24 }, field: pair.col2.name, as: 'y' },
+              { bin: { maxbins: 24 }, field: pair.col1.name, as: ['x', 'x_end'] },
+              { bin: { maxbins: 24 }, field: pair.col2.name, as: ['y', 'y_end'] },
             ],
             mark: 'rect',
             encoding: {
               x: { field: 'x', type: 'quantitative', bin: 'binned', title: pair.col1.name },
+              x2: { field: 'x_end' },
               y: { field: 'y', type: 'quantitative', bin: 'binned', title: pair.col2.name },
+              y2: { field: 'y_end' },
               color: { aggregate: 'count', type: 'quantitative', scale: { scheme: 'tealblues' } },
             },
           },
@@ -493,25 +477,6 @@ function generateChartRecommendations(dataset: DatasetLike): ChartRecommendation
         const numCol = numericCols[i];
         const catCol = categoricalCols[j];
         count += 1;
-
-        push({
-          type: 'boxplot',
-          title: `${numCol.name} by ${catCol.name}`,
-          priority: 60 - count,
-          reason: 'Distribution across categories',
-          spec: {
-            $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
-            width: 320,
-            height: 210,
-            data: { values: rows },
-            mark: { type: 'boxplot', extent: 1.5 },
-            encoding: {
-              x: { field: catCol.name, type: 'nominal' },
-              y: { field: numCol.name, type: 'quantitative' },
-              color: { value: '#f59e0b' },
-            },
-          },
-        });
 
         push({
           type: 'bar',

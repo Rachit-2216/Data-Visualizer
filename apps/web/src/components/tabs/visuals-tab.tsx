@@ -5,7 +5,6 @@ import { Loader2, Sparkles } from 'lucide-react';
 import { useDatasetStore } from '@/store/dataset-store';
 import { useProjectStore } from '@/store/project-store';
 import { useVisualsStore } from '@/store/visuals-store';
-import { useAuthStore } from '@/store/auth-store';
 import { useChat } from '@/hooks/use-chat';
 import { DynamicChartGrid } from '@/components/charts/dynamic-chart-generator';
 import { InteractiveChartWrapper } from '@/components/charts/interactive-chart-wrapper';
@@ -15,13 +14,12 @@ export function VisualsTab() {
   const { isLoading, datasetsByProject, currentDatasetId } = useDatasetStore();
   const { currentProjectId } = useProjectStore();
   const { savedCharts, fetchSavedCharts } = useVisualsStore();
-  const { user } = useAuthStore();
   const { sendMessage } = useChat();
 
   useEffect(() => {
-    if (!user || !currentProjectId) return;
-    fetchSavedCharts(currentProjectId);
-  }, [currentProjectId, fetchSavedCharts, user]);
+    if (!currentProjectId) return;
+    void fetchSavedCharts(currentProjectId);
+  }, [currentProjectId, fetchSavedCharts]);
 
   const dataset = useMemo(() => {
     if (!currentProjectId) return null;

@@ -46,7 +46,7 @@ export function HeroLab() {
           <HoverMorphTitle
             baseLines={['THROW DATA', 'AT IT']}
             hoverLines={['TAME BAD', 'FILES FAST']}
-            accent="#22d3ee"
+            accent="#ff4f2e"
             className="-mx-3 max-w-5xl"
           />
 

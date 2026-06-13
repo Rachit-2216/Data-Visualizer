@@ -22,7 +22,7 @@ export interface DatasetVersion {
   user_id: string;
   version_number: number;
   file_path: string;
-  file_type: 'csv' | 'parquet' | 'json' | 'tsv' | 'zip';
+  file_type: 'csv' | 'parquet' | 'json' | 'tsv' | 'xlsx' | 'zip';
   file_size_bytes: number;
   row_count_est: number | null;
   column_count_est: number | null;

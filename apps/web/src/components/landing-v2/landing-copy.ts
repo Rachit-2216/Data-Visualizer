@@ -29,7 +29,7 @@ export const heroCopy = {
     { id: 'json', label: 'JSON', detail: 'Nested like it has family secrets.' },
     { id: 'excel', label: 'Excel', detail: 'Bold of you to trust merged cells.' },
     { id: 'parquet', label: 'Parquet', detail: 'Fast, columnar, and smug about it.' },
-    { id: 'ai', label: 'AI', detail: 'Ask questions. Get fewer â€œit dependsâ€ answers.' },
+    { id: 'ai', label: 'AI', detail: 'Ask questions. Get fewer "it depends" answers.' },
   ],
 };
 
@@ -43,10 +43,10 @@ export const phoenixJourneyCopy = {
       eyebrow: 'STEP 01',
       title: 'Upload',
       headline: 'File enters. Panic exits.',
-      body: 'A messy dataset drops into the workspace. CSV, JSON, Excel, TSV, Parquet â€” all invited, all inspected.',
+      body: 'A messy dataset drops into the workspace. CSV, JSON, Excel, TSV, Parquet - all invited, all inspected.',
       punchline: 'The commas tried to unionize. We handled it.',
       previewTitle: 'messy_upload.csv',
-      previewMeta: '48,213 rows â€¢ 17 columns â€¢ 3 warnings',
+      previewMeta: '48,213 rows / 17 columns / 3 warnings',
       tokens: ['CSV', 'TSV', 'XLSX', 'JSON', 'NULL'],
       color: '#22d3ee',
       animation: 'chunk-drop',
@@ -59,7 +59,7 @@ export const phoenixJourneyCopy = {
       body: 'DataCanvas reads schema, missing values, duplicates, correlations, and suspicious columns before you touch a chart.',
       punchline: 'The dataset can run, but it cannot hide.',
       previewTitle: 'schema scan',
-      previewMeta: 'numeric 8 â€¢ categorical 5 â€¢ text 4',
+      previewMeta: 'numeric 8 / categorical 5 / text 4',
       tokens: ['schema', 'missing', 'dupes', 'corr', 'types'],
       color: '#a3e635',
       animation: 'scan-line',
@@ -83,7 +83,7 @@ export const phoenixJourneyCopy = {
       title: 'Ask AI',
       headline: 'The dataset starts talking back.',
       body: 'Ask natural-language questions and get answers grounded in columns, rows, charts, and actual patterns.',
-      punchline: 'Less â€œit depends,â€ more â€œrevenue dipped here.â€',
+      punchline: 'Less "it depends," more "revenue dipped here."',
       previewTitle: 'AI analyst',
       previewMeta: 'response grounded in profile + sample rows',
       tokens: ['why?', 'explain', 'outlier', 'trend', 'misc'],
@@ -98,8 +98,8 @@ export const phoenixJourneyCopy = {
       body: 'Run classification, regression, or clustering experiments and compare metrics without notebook archaeology.',
       punchline: 'Untitled-47.ipynb has left the chat.',
       previewTitle: 'model run',
-      previewMeta: 'accuracy 0.91 â€¢ f1 0.88 â€¢ drift low',
-      tokens: ['RÂ²', 'F1', 'AUC', 'k=3', 'train'],
+      previewMeta: 'accuracy 0.91 / f1 0.88 / drift low',
+      tokens: ['R2', 'F1', 'AUC', 'k=3', 'train'],
       color: '#facc15',
       animation: 'metric-rings',
     },
@@ -116,7 +116,7 @@ export const easterEggCopy = {
 
 export const formatsCopy = {
   headline: 'Bring your weird files.',
-  body: 'DataCanvas supports common data formats so you can stop converting everything into â€œfinal_final_v7.csvâ€.',
+  body: 'DataCanvas supports common data formats so you can stop converting everything into "final_final_v7.csv".',
   footer: 'If the file has columns, we are interested. If it has merged cells, we are suspicious.',
   cards: [
     {
@@ -127,7 +127,7 @@ export const formatsCopy = {
     },
     {
       format: 'TSV',
-      label: 'CSVâ€™s quieter cousin with tab discipline.',
+      label: "CSV's quieter cousin with tab discipline.",
       hoverLabel: 'tabs behaved better than expected',
       icon: Table2,
     },
@@ -145,7 +145,7 @@ export const formatsCopy = {
     },
     {
       format: 'Parquet',
-      label: 'For large data that knows what itâ€™s doing.',
+      label: "For large data that knows what it's doing.",
       hoverLabel: 'columnar speed, minimal smugness',
       icon: DatabaseZap,
     },
@@ -161,7 +161,7 @@ export const aiCopy = {
     'Build me a chart that would make sense to a human.',
   ],
   response:
-    'I found three suspicious clusters, two missing-value patterns, and one column named â€œmiscâ€ doing crimes.',
+    'I found three suspicious clusters, two missing-value patterns, and one column named "misc" doing crimes.',
   cta: 'Ask the dataset',
 };
 
@@ -172,7 +172,7 @@ export const mlCopy = {
   bullets: [
     { label: 'Classification for labels', icon: Sparkles },
     { label: 'Regression for numbers', icon: LineChart },
-    { label: 'Clustering for â€œwhat groups exist here?â€', icon: FlaskConical },
+    { label: 'Clustering for "what groups exist here?"', icon: FlaskConical },
     { label: 'Metrics that do not require a PhD to read', icon: BrainCircuit },
   ],
 };
@@ -188,7 +188,7 @@ export const proofCopy = {
     'Auto-generated charts',
     'AI explanations',
     'ML experiments',
-    'Session fallback when database memory is unavailable',
+    'Browser-local session persistence',
   ],
 };
 

@@ -12,7 +12,7 @@ type AnimatedStepPreviewProps = {
 
 const PREVIEW_POSITIONS: Record<string, string> = {
   upload: 'right-[6vw] bottom-[7rem]',
-  profile: 'left-[5vw] bottom-[8rem]',
+  profile: 'left-[4vw] bottom-[4.75rem]',
   visualize: 'right-[5vw] bottom-[7rem]',
   ask: 'left-[5vw] bottom-[7rem]',
   train: 'right-[5vw] bottom-[7rem]',
@@ -58,7 +58,7 @@ export function AnimatedStepPreview({ step, isActive }: AnimatedStepPreviewProps
 
         {step.animation === 'type-chat' ? (
           <div className="relative space-y-3">
-            {['Why did revenue dip?', 'Found 3 outliers and one suspicious “misc”.'].map((line, index) => (
+            {['Why did revenue dip?', 'Found 3 outliers and one suspicious "misc".'].map((line, index) => (
               <motion.div
                 key={line}
                 animate={{ opacity: isActive ? 1 : 0, x: isActive ? 0 : index ? -20 : 20 }}

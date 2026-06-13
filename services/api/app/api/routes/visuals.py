@@ -135,6 +135,10 @@ def _load_dataset(version_id: str, user_id: str) -> pl.DataFrame | None:
         return pl.read_json(buffer)
     if file_type in ["parquet"]:
         return pl.read_parquet(buffer)
+    if file_type in ["xlsx", "xls"]:
+        import pandas as pd
+
+        return pl.from_pandas(pd.read_excel(buffer))
     raise HTTPException(status_code=400, detail=f"Unsupported file type: {file_type}")
 
 

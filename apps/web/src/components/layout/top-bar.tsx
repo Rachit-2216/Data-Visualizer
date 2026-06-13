@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
@@ -9,8 +8,7 @@ import {
   Download,
   Search,
   Settings,
-  User,
-  LogOut,
+  HardDrive,
   BarChart3,
   Code2,
   FileText,
@@ -20,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -32,7 +31,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatNumber } from '@/lib/utils';
-import { useAuthStore } from '@/store/auth-store';
 import { useProjectStore } from '@/store/project-store';
 import { useDatasetStore } from '@/store/dataset-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
@@ -68,9 +66,6 @@ const toCsv = (rows: Array<Record<string, unknown>>) => {
 };
 
 export function TopBar() {
-  const router = useRouter();
-  const [showSignOutToast, setShowSignOutToast] = useState(false);
-  const { user } = useAuthStore();
   const { setProject, setDataset } = useWorkspaceStore();
   const { projects, currentProjectId, openCreateModal, selectProject } = useProjectStore();
   const { datasetsByProject, currentDatasetId, openUploadModal, selectDataset } = useDatasetStore();
@@ -89,16 +84,17 @@ export function TopBar() {
     selectProject(id);
     setProject(id);
     const nextDatasets = datasetsByProject[id] ?? [];
-    const nextDatasetId = nextDatasets[0]?.id ?? null;
+    const nextDataset = nextDatasets[0] ?? null;
+    const nextDatasetId = nextDataset?.id ?? null;
     selectDataset(nextDatasetId);
-    setDataset(nextDatasetId, nextDatasetId ? `${nextDatasetId}-v1` : null);
+    setDataset(nextDatasetId, nextDataset?.versionId ?? (nextDatasetId ? `${nextDatasetId}-v1` : null));
   };
 
   return (
     <div className="h-10 bg-[#070b14] border-b border-white/10 flex items-center justify-between px-4">
       <div className="flex items-center gap-4">
         <Link
-          href={user ? '/workspace' : '/'}
+          href="/workspace"
           className="flex items-center gap-2 transition-transform hover:scale-[1.02]"
         >
           <div className="w-7 h-7 rounded-md border border-white/10 bg-white/5 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.15)]">
@@ -158,21 +154,11 @@ export function TopBar() {
 
         <div className="w-px h-6 bg-white/10 mx-2" />
 
-        <UserMenu onSignedOut={() => {
-          setShowSignOutToast(true);
-          window.setTimeout(() => setShowSignOutToast(false), 2500);
-          router.push('/');
-        }} />
+        <LocalModeMenu />
       </div>
 
       <ProjectCreateModal />
       <DatasetUploadModal />
-
-      {showSignOutToast && (
-        <div className="fixed top-4 right-4 z-50 rounded-lg border border-white/10 bg-[#0b111c] px-3 py-2 text-xs text-white shadow-lg">
-          Signed out successfully.
-        </div>
-      )}
     </div>
   );
 }
@@ -250,7 +236,7 @@ function DatasetSelector({
             <div className="flex flex-col">
               <span>{dataset.name}</span>
               <span className="text-xs text-muted-foreground">
-                {new Date(dataset.createdAt).toLocaleDateString()} · {formatNumber(dataset.rowCount)} rows
+                {new Date(dataset.createdAt).toLocaleDateString()} - {formatNumber(dataset.rowCount)} rows
               </span>
             </div>
           </DropdownMenuItem>
@@ -305,63 +291,30 @@ function ExportMenu() {
   );
 }
 
-function UserMenu({ onSignedOut }: { onSignedOut: () => void }) {
-  const router = useRouter();
-  const { user, signOut } = useAuthStore();
-  const { reset: resetProjects } = useProjectStore();
-  const { reset: resetDatasets } = useDatasetStore();
-  const { setProject, setDataset } = useWorkspaceStore();
-
-  const handleSignOut = async () => {
-    await signOut();
-    resetProjects();
-    resetDatasets();
-    setProject(null);
-    setDataset(null, null);
-    onSignedOut();
-  };
-
-  if (!user) {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70">
-            <User className="w-4 h-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => router.push('/login')}>
-            Sign in
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push('/signup')}>
-            Create account
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  }
-
+function LocalModeMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70">
-          <User className="w-4 h-4" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-2 text-white/70 hover:text-white"
+        >
+          <HardDrive className="w-4 h-4 text-lime-300" />
+          <span className="hidden xl:inline">Local</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-64">
         <div className="px-2 py-1.5">
-          <p className="text-sm font-medium">User</p>
-          <p className="text-xs text-muted-foreground">{user.email}</p>
+          <p className="text-sm font-medium">Browser-local workspace</p>
+          <p className="text-xs text-muted-foreground">
+            Projects, datasets, chats, and charts stay on this device.
+          </p>
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem>
           <Settings className="w-4 h-4 mr-2" />
           Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -418,12 +371,21 @@ function ProjectCreateModal() {
 function DatasetUploadModal() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
   const { currentProjectId } = useProjectStore();
-  const { isUploadModalOpen, closeUploadModal, uploadDataset, uploadProgress } = useDatasetStore();
+  const {
+    isLoading,
+    isUploadModalOpen,
+    closeUploadModal,
+    uploadDataset,
+    uploadProgress,
+    error: uploadError,
+    clearError,
+  } = useDatasetStore();
 
   const handleFilePick = (picked: File | null) => {
-    setError('');
+    setLocalError('');
+    clearError();
     if (!picked) {
       setFile(null);
       return;
@@ -433,16 +395,22 @@ function DatasetUploadModal() {
 
   const handleUpload = async () => {
     if (!currentProjectId) {
-      setError('Select a project before uploading.');
+      setLocalError('Select a project before uploading.');
       return;
     }
     if (!file) {
-      setError('Choose a dataset file to upload.');
+      setLocalError('Choose a dataset file to upload.');
       return;
     }
-    await uploadDataset(file, currentProjectId);
-    setFile(null);
+    setLocalError('');
+    clearError();
+    const created = await uploadDataset(file, currentProjectId);
+    if (created) {
+      setFile(null);
+    }
   };
+
+  const isUploading = isLoading && uploadProgress > 0;
 
   return (
     <Dialog
@@ -451,13 +419,17 @@ function DatasetUploadModal() {
         if (!open) {
           closeUploadModal();
           setFile(null);
-          setError('');
+          setLocalError('');
+          clearError();
         }
       }}
     >
       <DialogContent className="bg-[#0b111c] border border-white/10 text-white">
         <DialogHeader>
           <DialogTitle>Upload new dataset</DialogTitle>
+          <DialogDescription className="text-white/55">
+            Files are parsed in your browser and stored only in this local session.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div
@@ -473,14 +445,14 @@ function DatasetUploadModal() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.json,.parquet,.tsv"
+              accept=".csv,.tsv,.json,.xlsx,.xls,.parquet"
               className="hidden"
               onChange={(event) => handleFilePick(event.target.files?.[0] ?? null)}
             />
             <p className="text-sm text-white/70">
               Drag & drop a file here, or click to browse.
             </p>
-            <p className="text-xs text-white/40 mt-1">CSV, JSON, Parquet, TSV</p>
+            <p className="text-xs text-white/40 mt-1">CSV, TSV, JSON, XLSX, XLS, Parquet</p>
             {file && (
               <p className="mt-3 text-xs text-white/80">Selected: {file.name}</p>
             )}
@@ -496,13 +468,17 @@ function DatasetUploadModal() {
               <p className="text-xs text-white/50">Uploading... {uploadProgress}%</p>
             </div>
           )}
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {(localError || uploadError) && (
+            <p className="text-xs text-red-400">{localError || uploadError}</p>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={closeUploadModal}>
+          <Button variant="ghost" onClick={closeUploadModal} disabled={isUploading}>
             Cancel
           </Button>
-          <Button onClick={handleUpload}>Upload</Button>
+          <Button onClick={handleUpload} disabled={!file || isUploading}>
+            {isUploading ? 'Uploading...' : 'Upload'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

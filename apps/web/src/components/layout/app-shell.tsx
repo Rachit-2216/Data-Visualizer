@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useLayoutStore } from '@/store/layout-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
-import { useAuthStore } from '@/store/auth-store';
 import { useProjectStore } from '@/store/project-store';
 import { useDatasetStore } from '@/store/dataset-store';
 import { useHydrated } from '@/hooks/use-hydrated';
@@ -38,8 +36,6 @@ export function AppShell() {
     toggleSidebar,
   } = useLayoutStore();
   const { initializeWorkspace, setProject, setDataset } = useWorkspaceStore();
-  const router = useRouter();
-  const { initialize, user, demoBannerDismissed, dismissDemoBanner } = useAuthStore();
   const { currentProjectId, fetchProjects } = useProjectStore();
   const {
     fetchDatasets,
@@ -53,10 +49,6 @@ export function AppShell() {
   useEffect(() => {
     initializeWorkspace();
   }, [initializeWorkspace]);
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   useEffect(() => {
     void fetchProjects().catch(() => {});
@@ -114,26 +106,6 @@ export function AppShell() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" suppressHydrationWarning>
-      {!user && !demoBannerDismissed && (
-        <div className="w-full bg-amber-500/10 border-b border-amber-400/20 text-amber-100 text-xs px-4 py-2 flex items-center justify-between">
-          <span>You&apos;re in demo mode. Sign in to save your work.</span>
-          <div className="flex items-center gap-2">
-            <button
-              className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-medium hover:bg-amber-400/30"
-              onClick={() => router.push('/login')}
-            >
-              Sign in
-            </button>
-            <button
-              className="rounded-full border border-amber-400/30 px-3 py-1 text-xs font-medium hover:bg-amber-400/10"
-              onClick={dismissDemoBanner}
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
       <TopBar />
 
       <div className="flex-1 flex min-h-0 overflow-hidden">

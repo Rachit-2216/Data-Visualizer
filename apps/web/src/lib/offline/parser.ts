@@ -27,25 +27,24 @@ const normalizeRows = (rows: Array<Record<string, unknown>>) =>
     return normalized;
   });
 
-const parseCsvLike = (file: File, delimiter: string): Promise<ParsedDataset> =>
-  new Promise((resolve, reject) => {
+const parseCsvLike = async (file: File, delimiter: string): Promise<ParsedDataset> => {
+  const text = await file.text();
+
+  return new Promise((resolve, reject) => {
     const rows: Array<Record<string, unknown>> = [];
     let rowCount = 0;
     const sampled = file.size > LARGE_FILE_BYTES;
     const sampleLimit = sampled ? MAX_SAMPLE_ROWS : Infinity;
 
-    Papa.parse(file, {
+    Papa.parse(text, {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
       delimiter,
-      step: (results, parser) => {
+      step: (results) => {
         rowCount += 1;
         if (rows.length < sampleLimit) {
           rows.push(results.data as Record<string, unknown>);
-        }
-        if (sampled && rows.length >= MAX_SAMPLE_ROWS) {
-          parser.abort();
         }
       },
       complete: (results) => {
@@ -55,16 +54,17 @@ const parseCsvLike = (file: File, delimiter: string): Promise<ParsedDataset> =>
         resolve({
           rows: normalizeRows(rows),
           columns,
-          rowCount: sampled ? rows.length : rowCount,
+          rowCount,
           sampled,
           sampleNote: sampled
             ? `Sampled first ${MAX_SAMPLE_ROWS} rows for profiling.`
             : undefined,
         });
       },
-      error: (error) => reject(error),
+      error: (error: Error) => reject(error),
     });
   });
+};
 
 const parseJson = async (file: File): Promise<ParsedDataset> => {
   const text = await file.text();
@@ -78,7 +78,7 @@ const parseJson = async (file: File): Promise<ParsedDataset> => {
   return {
     rows: normalizeRows(rows),
     columns,
-    rowCount: sampled ? rows.length : data.length,
+    rowCount: data.length,
     sampled,
     sampleNote: sampled
       ? `Sampled first ${MAX_SAMPLE_ROWS} rows for profiling.`
@@ -102,7 +102,7 @@ const parseXlsx = async (file: File): Promise<ParsedDataset> => {
   return {
     rows: normalizeRows(rows),
     columns,
-    rowCount: sampled ? rows.length : rowCount,
+    rowCount,
     sampled,
     sampleNote: sampled
       ? `Sampled first ${MAX_SAMPLE_ROWS} rows for profiling.`
@@ -140,7 +140,7 @@ const parseParquet = async (file: File): Promise<ParsedDataset> => {
   return {
     rows: normalizeRows(rows),
     columns,
-    rowCount: sampled ? rows.length : totalRows,
+    rowCount: totalRows,
     sampled,
     sampleNote: sampled
       ? `Sampled first ${MAX_SAMPLE_ROWS} rows for profiling.`

@@ -159,8 +159,9 @@ function ExplorerContent() {
   };
 
   const handleDatasetClick = (datasetId: string) => {
+    const selected = datasets.find((dataset) => dataset.id === datasetId);
     selectDataset(datasetId);
-    setDataset(datasetId, `${datasetId}-v1`);
+    setDataset(datasetId, selected?.versionId ?? `${datasetId}-v1`);
     toggleItem(datasetId);
   };
 
@@ -206,7 +207,7 @@ function ExplorerContent() {
 
                   {expandedItems.includes(dataset.id) && (
                     <div className="ml-4">
-                      {[{ id: `${dataset.id}-v1`, version: 1 }].map((version) => (
+                      {[{ id: dataset.versionId ?? `${dataset.id}-v1`, version: 1 }].map((version) => (
                         <div key={version.id}>
                           <button
                             className="w-full flex items-center gap-1 px-2 py-1 hover:bg-white/5 text-sm text-white/60"

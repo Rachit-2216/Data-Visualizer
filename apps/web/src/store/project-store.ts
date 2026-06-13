@@ -2,11 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createClientOptional } from '@/lib/supabase/client';
 import { demoProject, type DemoProject } from '@/lib/demo-data';
-import { apiClient, ApiError, type ApiProject } from '@/lib/api-client';
-import { isUuid } from '@/lib/utils';
-import { isOfflineMode } from '@/lib/offline/mode';
 
 export type Project = DemoProject & {
   isProtected?: boolean;
@@ -38,20 +34,6 @@ const ensureDemoProject = (projects: Project[]) => {
   return [{ ...demoProject, isProtected: true }, ...projects];
 };
 
-const withDemoFallback = (projects: Project[]) => {
-  if (projects.some((project) => project.isProtected)) {
-    return projects;
-  }
-  return ensureDemoProject(projects);
-};
-
-const mapRemoteProject = (project: ApiProject): Project => ({
-  id: project.id,
-  name: project.name,
-  createdAt: project.created_at,
-  isProtected: project.is_demo,
-});
-
 const generateId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -71,88 +53,18 @@ export const useProjectStore = create<ProjectState>()(
       ...initialState,
       fetchProjects: async () => {
         set({ isLoading: true, error: null });
-        try {
-          if (isOfflineMode()) {
-            const merged = ensureDemoProject(get().projects);
-            const current = get().currentProjectId;
-            const activeId =
-              current && merged.some((project) => project.id === current)
-                ? current
-                : merged[0]?.id ?? demoProject.id;
-            set({ projects: merged, currentProjectId: activeId });
-            return;
-          }
-          const supabase = createClientOptional();
-          if (!supabase) {
-            const merged = ensureDemoProject(get().projects);
-            const current = get().currentProjectId;
-            const activeId =
-              current && merged.some((project) => project.id === current)
-                ? current
-                : merged[0]?.id ?? demoProject.id;
-            set({ projects: merged, currentProjectId: activeId });
-            return;
-          }
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-
-          if (user) {
-            const response = await apiClient.getProjects();
-            const remoteProjects = (response.projects ?? []).map(mapRemoteProject);
-            const merged = withDemoFallback(remoteProjects);
-            const current = get().currentProjectId;
-            const firstRemote = merged.find((project) => isUuid(project.id))?.id;
-            const activeId =
-              current && merged.some((project) => project.id === current) && isUuid(current)
-                ? current
-                : firstRemote ?? merged[0]?.id ?? demoProject.id;
-            set({ projects: merged, currentProjectId: activeId });
-          } else {
-            const merged = ensureDemoProject(get().projects);
-            const current = get().currentProjectId;
-            const activeId =
-              current && merged.some((project) => project.id === current)
-                ? current
-                : merged[0]?.id ?? demoProject.id;
-            set({ projects: merged, currentProjectId: activeId });
-          }
-        } catch (error) {
-          const message =
-            error instanceof ApiError ? error.message : 'Failed to load projects';
-          const fallback = ensureDemoProject(get().projects);
-          const activeId = fallback[0]?.id ?? demoProject.id;
-          set({ error: message, projects: fallback, currentProjectId: activeId });
-        } finally {
-          set({ isLoading: false });
-        }
+        const projects = ensureDemoProject(get().projects);
+        const current = get().currentProjectId;
+        const currentProjectId =
+          current && projects.some((project) => project.id === current)
+            ? current
+            : projects[0]?.id ?? demoProject.id;
+        set({ projects, currentProjectId, isLoading: false });
       },
       createProject: async (name: string) => {
         const trimmedName = name.trim();
         if (!trimmedName) {
           return null;
-        }
-
-        const supabase = createClientOptional();
-        const user =
-          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
-
-        if (user) {
-          try {
-            const response = await apiClient.createProject({ name: trimmedName });
-            const created = mapRemoteProject(response.project);
-            set((state) => ({
-              projects: withDemoFallback([...state.projects, created]),
-              currentProjectId: created.id,
-              isCreateModalOpen: false,
-            }));
-            return created;
-          } catch (error) {
-            const message =
-              error instanceof ApiError ? error.message : 'Failed to create project';
-            set({ error: message });
-            return null;
-          }
         }
 
         const created: Project = {
@@ -171,21 +83,6 @@ export const useProjectStore = create<ProjectState>()(
         const project = get().projects.find((item) => item.id === projectId);
         if (!project || project.isProtected) {
           return;
-        }
-
-        const supabase = createClientOptional();
-        const user =
-          supabase && !isOfflineMode() ? (await supabase.auth.getUser()).data.user : null;
-
-        if (user) {
-          try {
-            await apiClient.deleteProject(projectId);
-          } catch (error) {
-            const message =
-              error instanceof ApiError ? error.message : 'Failed to delete project';
-            set({ error: message });
-            return;
-          }
         }
 
         set((state) => {

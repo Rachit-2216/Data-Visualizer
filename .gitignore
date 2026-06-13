@@ -7,6 +7,7 @@ node_modules
 out
 dist
 build
+*.tsbuildinfo
 
 # Environment files
 .env
@@ -24,6 +25,7 @@ build
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Logs
 *.log
@@ -38,6 +40,8 @@ context_document.md
 
 # Testing
 coverage
+.playwright-cli
+output/playwright
 
 # Python
 __pycache__

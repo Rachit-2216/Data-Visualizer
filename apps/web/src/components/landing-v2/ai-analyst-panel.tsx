@@ -93,7 +93,7 @@ export function AIAnalystPanel() {
 
           <div className="border-t border-white/10 p-5">
             <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-5 py-3 text-white/38">
-              <span className="flex-1 text-sm">Ask why “misc” has 47 unique personalities...</span>
+              <span className="flex-1 text-sm">{'Ask why "misc" has 47 unique personalities...'}</span>
               <SendHorizontal className="h-5 w-5 text-fuchsia-200" />
             </div>
           </div>

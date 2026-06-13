@@ -12,16 +12,19 @@ type ScrollStepCopyProps = {
 };
 
 const COPY_POSITIONS: Record<string, string> = {
-  upload: 'left-[6vw] top-[54%] w-[min(31rem,34vw)] -translate-y-1/2',
-  profile: 'right-[5vw] bottom-[5.8rem] w-[min(31rem,33vw)] translate-y-0',
-  visualize: 'left-[5vw] top-[51%] w-[min(29rem,31vw)] -translate-y-1/2',
-  ask: 'right-[5vw] bottom-[3rem] w-[min(30rem,32vw)] translate-y-0',
-  train: 'left-[6vw] top-[55%] w-[min(31rem,34vw)] -translate-y-1/2',
+  upload: 'left-[5vw] bottom-[5rem] w-[min(30rem,31vw)] translate-y-0',
+  profile: 'right-[5vw] bottom-[5.25rem] w-[min(31rem,32vw)] translate-y-0',
+  visualize: 'left-[5vw] bottom-[4.75rem] w-[min(28rem,30vw)] translate-y-0',
+  ask: 'right-[5vw] top-[40%] w-[min(30rem,32vw)] -translate-y-0',
+  train: 'left-[5vw] bottom-[4.75rem] w-[min(30rem,32vw)] translate-y-0',
 };
 
 const HEADLINE_SIZE: Record<string, string> = {
-  visualize: 'text-[clamp(2.25rem,3.25vw,4rem)] leading-[0.92] tracking-[-0.045em]',
-  ask: 'text-[clamp(2rem,2.85vw,3.45rem)] leading-[0.98] tracking-[-0.035em]',
+  upload: 'text-[clamp(2.15rem,3vw,3.55rem)] leading-[0.92] tracking-[-0.045em]',
+  profile: 'text-[clamp(2.2rem,3vw,3.6rem)] leading-[0.92] tracking-[-0.045em]',
+  visualize: 'text-[clamp(1.95rem,2.55vw,3.05rem)] leading-[0.95] tracking-[-0.04em]',
+  ask: 'text-[clamp(1.9rem,2.55vw,3.2rem)] leading-[0.98] tracking-[-0.035em]',
+  train: 'text-[clamp(2rem,2.75vw,3.25rem)] leading-[0.95] tracking-[-0.04em]',
 };
 
 function headlineClass(stepId?: string, fallback = 'text-[clamp(2.7rem,4.05vw,5rem)] leading-[0.88] tracking-[-0.052em]') {
@@ -102,7 +105,7 @@ function TypedHeadline({ text, isActive, stepId }: { text: string; isActive: boo
 function MetricHeadline({ text, isActive }: { text: string; isActive: boolean }) {
   return (
     <div>
-      <h3 className={headlineClass()}>
+      <h3 className={headlineClass('train')}>
         {text}
       </h3>
       <div className="mt-5 flex gap-3 font-mono text-sm uppercase tracking-[0.2em] text-yellow-100/70">
@@ -140,10 +143,10 @@ export function ScrollStepCopy({ step, index, isActive }: ScrollStepCopyProps) {
         filter: isActive ? 'blur(0px)' : 'blur(1.5px)',
       }}
       transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-      className={`absolute z-50 ${positionClass}`}
+      className={`absolute z-[70] ${positionClass}`}
     >
-      <div className="max-h-[72vh] overflow-visible rounded-[2rem] border border-white/14 bg-[#05060a]/92 p-6 shadow-2xl shadow-black/75 backdrop-blur-2xl">
-      <div className="mb-5 flex items-center gap-3">
+      <div className="max-h-[calc(100vh-10rem)] overflow-hidden rounded-[2rem] border border-white/18 bg-[#05060a]/96 p-5 shadow-2xl shadow-black/80 backdrop-blur-2xl">
+      <div className="mb-4 flex items-center gap-3">
         <span
           className="rounded-full border px-3 py-1 font-mono text-xs uppercase tracking-[0.24em]"
           style={{ borderColor: `${step.color}55`, color: step.color, backgroundColor: `${step.color}14` }}
@@ -155,8 +158,8 @@ export function ScrollStepCopy({ step, index, isActive }: ScrollStepCopyProps) {
         </span>
       </div>
       {renderHeadline()}
-      <p className="mt-5 text-base font-semibold leading-7 text-white/88 drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">{step.body}</p>
-      <p className="mt-6 inline-flex rounded-full border border-white/14 bg-black/55 px-5 py-3 font-semibold text-white/86 shadow-xl shadow-black/30">
+      <p className="mt-4 text-[0.96rem] font-semibold leading-7 text-white/90 drop-shadow-[0_2px_16px_rgba(0,0,0,0.9)]">{step.body}</p>
+      <p className="mt-5 inline-flex rounded-full border border-white/16 bg-black/65 px-4 py-2.5 text-[0.94rem] font-semibold text-white/88 shadow-xl shadow-black/35">
         {step.punchline}
       </p>
       </div>

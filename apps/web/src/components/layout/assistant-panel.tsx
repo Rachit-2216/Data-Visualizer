@@ -19,14 +19,14 @@ export function AssistantPanel({ collapsed = false }: { collapsed?: boolean }) {
     error,
     sendMessage,
     refreshSuggestions,
-    initializeFromSupabase,
+    initializeLocalChat,
     newChat,
   } = useChat();
 
   useEffect(() => {
     refreshSuggestions();
-    void initializeFromSupabase().catch(() => {});
-  }, [initializeFromSupabase, refreshSuggestions]);
+    void initializeLocalChat();
+  }, [initializeLocalChat, refreshSuggestions]);
 
   if (collapsed) {
     return (

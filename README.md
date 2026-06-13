@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" /></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" /></a>
-  <a href="https://supabase.com/"><img src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" /></a>
+  <img src="https://img.shields.io/badge/Storage-Browser%20Local-65D8EE?style=for-the-badge" alt="Browser-local storage" />
   <a href="https://groq.com/"><img src="https://img.shields.io/badge/Groq-Llama%203.1%2070B-F55036?style=for-the-badge" alt="Groq" /></a>
   <a href="https://threejs.org/"><img src="https://img.shields.io/badge/Three.js-3D%20Landing-000000?style=for-the-badge&logo=three.js&logoColor=white" alt="Three.js" /></a>
   <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Services-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" /></a>
@@ -27,7 +27,7 @@ Upload messy datasets, profile them automatically, generate useful visualization
 - [Local Setup](#local-setup)
 - [Run Services](#run-services)
 - [Environment Variables](#environment-variables)
-- [Offline and Demo Mode](#offline-and-demo-mode)
+- [Local-First Data Mode](#local-first-data-mode)
 - [Supported File Formats](#supported-file-formats)
 - [AI Chat (Groq) Setup](#ai-chat-groq-setup)
 - [Scripts](#scripts)
@@ -47,10 +47,10 @@ It combines:
 
 - A polished animated landing page for the public product story
 - An editor/workspace-style frontend for data work
-- A FastAPI backend for projects/datasets/chat/ML orchestration
-- Background profiling and ML services
-- Supabase for auth, DB, storage, and persistence
-- Groq for LLM-powered conversational analysis
+- Browser-local projects, datasets, profiles, charts, and conversations
+- Client-side parsing and profiling for the supported upload formats
+- Optional FastAPI, profiling, and ML services for future heavier workloads
+- Groq for optional LLM-powered conversational analysis
 
 ---
 
@@ -62,7 +62,7 @@ It combines:
 - Workspace tabs for data, visuals, and CodeViz
 - CodeViz with interactive model architecture, loss, and training views
 - AI assistant with streaming responses and chart-capable outputs
-- Demo/offline fallback mode when backend persistence is unavailable
+- Local-first persistence with no database or sign-in requirement
 - Animated Chaos Lab landing page with Data Phoenix scrollytelling, hover reveals, and easter eggs
 
 ---
@@ -88,12 +88,12 @@ The current landing uses normal browser scrolling and Framer Motion-driven trans
 ## End-to-End Product Flow
 
 1. User creates/selects a project.
-2. User uploads dataset metadata and file.
-3. API writes metadata to DB and file to storage.
-4. Profiler service picks queued jobs and computes schema/stats/warnings/sample/correlations.
-5. Frontend loads profile + previews and generates chart recommendations.
-6. User can chat with AI for insights or requested visualizations.
-7. User can configure/train models and inspect results in CodeViz and model views.
+2. User uploads a dataset directly in the browser.
+3. The client parser reads the file and builds typed sample rows.
+4. Local profiling computes schema, stats, warnings, and quality signals.
+5. The Visuals tab builds chart recommendations from the uploaded columns and rows.
+6. User can optionally chat with Groq using the local dataset context.
+7. User can explore model architecture and experiment views in CodeViz.
 
 ---
 
@@ -101,11 +101,14 @@ The current landing uses normal browser scrolling and Framer Motion-driven trans
 
 ```text
 apps/web (Next.js frontend)
-  -> services/api (FastAPI gateway, port 8001)
-       -> Supabase (Postgres + Auth + Storage)
-       -> services/profiler (background profiling, port 8000)
-       -> services/ml (ML train/inference, port 8002, optional)
-       -> Groq API (LLM chat + chart reasoning)
+  -> browser storage (projects, datasets, profiles, charts, conversations)
+  -> local parsers/profiler (CSV, TSV, JSON, Excel, Parquet)
+  -> Groq API (optional LLM chat through a Next.js route)
+
+Optional service prototypes:
+  -> services/api
+  -> services/profiler
+  -> services/ml
 ```
 
 ---
@@ -124,8 +127,7 @@ datacanvas/
     ml/                     # ML service
   packages/
     types/                  # shared TypeScript types
-  supabase/
-    migrations/             # DB schema and RLS migrations
+  scripts/                  # local regression and verification scripts
 ```
 
 ---
@@ -146,7 +148,6 @@ Frontend:
 Backend:
 
 - FastAPI
-- Supabase Python client
 - Polars/Pandas-based profiling flows
 - scikit-learn/LightGBM/PyTorch strategy in ML service
 - Groq SDK for AI chat and chart generation
@@ -164,9 +165,8 @@ Infra:
 
 - Node.js `>=18`
 - `pnpm >=9`
-- Docker Desktop
-- Supabase project (recommended for full mode)
-- Groq API key
+- Groq API key only if you want live AI chat
+- Docker Desktop only if you want to explore the optional Python services
 
 ### 2) Clone
 
@@ -185,42 +185,16 @@ pnpm install
 
 ## Run Services
 
-Run each in a separate terminal.
-
-### Terminal A: API Gateway
-
-```bash
-cd services/api
-docker compose up --build
-```
-
-API: `http://localhost:8001`
-
-### Terminal B: Profiler Service
-
-```bash
-cd services/profiler
-docker compose up --build
-```
-
-Profiler: `http://localhost:8000`
-
-### Terminal C: ML Service (optional but recommended)
-
-```bash
-cd services/ml
-docker compose up --build
-```
-
-ML: `http://localhost:8002`
-
-### Terminal D: Frontend
+The complete current product experience runs from the frontend package:
 
 ```bash
 pnpm -C apps/web dev
 ```
 
 Frontend: `http://localhost:3000`
+
+The Python services under `services/` are optional prototypes and are not required
+for local uploads, profiling, generated visuals, saved charts, or workspace state.
 
 ---
 
@@ -231,57 +205,25 @@ Use local env files. Never commit real keys.
 ### `apps/web/.env.local`
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8001
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 GROQ_API_KEY=your_groq_key
 GROQ_MODEL=llama-3.1-70b-versatile
-```
-
-### `services/api/.env`
-
-```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_JWT_SECRET=your_supabase_jwt_secret
-SUPABASE_DATASETS_BUCKET=datasets
-SUPABASE_MODELS_BUCKET=models
-GROQ_API_KEY=your_groq_key
-GROQ_MODEL=llama-3.1-70b-versatile
-```
-
-### `services/profiler/.env`
-
-```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-SUPABASE_DATASETS_BUCKET=datasets
-```
-
-### `services/ml/.env` (if using ML service)
-
-```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-SUPABASE_DATASETS_BUCKET=datasets
-SUPABASE_MODELS_BUCKET=models
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ---
 
-## Offline and Demo Mode
+## Local-First Data Mode
 
-DataCanvas supports a fallback mode for public demos or temporary no-DB operation.
+The active workspace deliberately runs without a database dependency:
 
-If Supabase is unavailable:
+- Projects and uploaded datasets persist in browser storage on the current device
+- Files are parsed and profiled in the browser
+- Generated visuals use the uploaded dataset's real columns and sample rows
+- Saved charts and chat threads stay local
+- Login and signup URLs redirect directly to the workspace
 
-- Project/dataset state can fall back to browser-local behavior
-- Upload parsing still works client-side for supported formats
-- Visualization and analysis remain usable in reduced mode
-- Persistence and multi-session continuity are limited
-
-This is useful for Vercel previews when backend infra is intentionally paused.
+Clearing site data or switching browsers removes local workspace state. Keep original
+datasets outside the app when long-term archival matters.
 
 ---
 
@@ -338,17 +280,10 @@ pnpm -C apps/web type-check
 
 ## Deployment Notes
 
-Recommended split:
+Deploy `apps/web` to Vercel. The deployed workspace remains browser-local for each
+visitor, so users can upload and analyze files without a shared database.
 
-- Frontend: Vercel
-- API/Profiler/ML: container host (Railway/Fly.io/VPS)
-- Supabase: managed DB/Auth/Storage
-
-For public demo links:
-
-- Keep fallback mode enabled
-- Hide privileged actions requiring backend persistence
-- Never expose service-role keys in client env
+Add `GROQ_API_KEY` and `GROQ_MODEL` in Vercel only when enabling live AI chat.
 
 ---
 
@@ -356,8 +291,8 @@ For public demo links:
 
 - `.env*` is ignored by git (except examples)
 - `context_document.md` is ignored by git
-- Do not commit API keys or service-role credentials
-- Use service-role keys only in backend services
+- Do not commit API keys
+- Keep Groq credentials server-side
 - Rotate keys immediately if exposure is suspected
 
 ---

@@ -1,12 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo } from 'react';
-import { apiClient, ApiError } from '@/lib/api-client';
-import { useAuthStore } from '@/store/auth-store';
 import { useChatStore, type ChatMessage } from '@/store/chat-store';
 import { useProjectStore } from '@/store/project-store';
 import { useDatasetStore } from '@/store/dataset-store';
-import { isUuid } from '@/lib/utils';
 import type { ChatRequestPayload, StreamEvent } from '@/lib/groq/types';
 
 const decoder = new TextDecoder();
@@ -38,7 +35,10 @@ const toDatasetContext = (dataset?: {
   name: string;
   rowCount: number;
   columns: Array<{ name: string; type: string }>;
-  profile?: { stats: Record<string, unknown>; warnings: Array<{ severity: string; message: string }> };
+  profile?: {
+    stats: Record<string, unknown>;
+    warnings: Array<{ severity: string; message: string }>;
+  };
   sampleRows: Array<Record<string, unknown>>;
 }) => {
   if (!dataset || !dataset.profile) return null;
@@ -54,7 +54,6 @@ const toDatasetContext = (dataset?: {
 };
 
 export function useChat() {
-  const { user } = useAuthStore();
   const {
     conversations,
     activeConversationId,
@@ -65,15 +64,12 @@ export function useChat() {
     startConversation,
     addMessage,
     updateMessage,
-    replaceMessages,
     setSuggestions,
     setStreaming,
     setError,
-    setActiveConversation,
-    setConversations,
   } = useChatStore();
   const { currentProjectId } = useProjectStore();
-  const { datasetsByProject, currentDatasetId, currentDatasetVersionId } = useDatasetStore();
+  const { datasetsByProject, currentDatasetId } = useDatasetStore();
 
   const activeMessages = activeConversationId
     ? messagesByConversation[activeConversationId] ?? []
@@ -87,9 +83,12 @@ export function useChat() {
   }, [currentDatasetId, currentProjectId, datasetsByProject]);
 
   const refreshSuggestions = useCallback(() => {
-    const hasDataset = !!activeDataset;
-    const hasWarnings = (activeDataset?.profile?.warnings ?? []).length > 0;
-    setSuggestions(buildSuggestions(hasDataset, hasWarnings));
+    setSuggestions(
+      buildSuggestions(
+        !!activeDataset,
+        (activeDataset?.profile?.warnings ?? []).length > 0
+      )
+    );
   }, [activeDataset, setSuggestions]);
 
   useEffect(() => {
@@ -103,37 +102,9 @@ export function useChat() {
 
       setError(null);
       setStreaming(true);
-      const datasetVersionId =
-        currentDatasetVersionId && isUuid(currentDatasetVersionId)
-          ? currentDatasetVersionId
-          : undefined;
 
-      let conversationId = activeConversationId;
-      if (!conversationId) {
-        if (user) {
-          if (!currentProjectId || !isUuid(currentProjectId)) {
-            setError('Select a project to start a conversation.');
-            setStreaming(false);
-            return;
-          }
-          try {
-            const created = await apiClient.createConversation({
-              project_id: currentProjectId,
-              dataset_version_id: datasetVersionId,
-            });
-            conversationId = startConversation(trimmed.slice(0, 60) || 'New chat', created.conversation.id);
-          } catch (error) {
-            const message =
-              error instanceof ApiError ? error.message : 'Failed to start conversation';
-            setError(message);
-            setStreaming(false);
-            return;
-          }
-        } else {
-          conversationId = startConversation('New chat');
-        }
-      }
-
+      const conversationId =
+        activeConversationId ?? startConversation('New chat');
       const userMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
         role: 'user',
@@ -145,7 +116,6 @@ export function useChat() {
 
       const assistantId = `msg-${Date.now() + 1}`;
       let assistantContent = '';
-      let assistantChartSpec: Record<string, unknown> | null = null;
       addMessage(conversationId, {
         id: assistantId,
         role: 'assistant',
@@ -154,18 +124,18 @@ export function useChat() {
         status: 'streaming',
       });
 
-      const streamFromLocal = async () => {
+      try {
         const payload: ChatRequestPayload = {
           message: trimmed,
           datasetContext: toDatasetContext(activeDataset),
           conversationId,
           model: 'llama-3.1-70b-versatile',
           history: (messagesByConversation[conversationId] ?? [])
-            .filter((msg) => msg.role !== 'assistant' || msg.content)
+            .filter((item) => item.role !== 'assistant' || item.content)
             .slice(-8)
-            .map((msg) => ({
-              role: msg.role,
-              content: msg.content,
+            .map((item) => ({
+              role: item.role,
+              content: item.content,
             })),
         };
         const response = await fetch('/api/chat', {
@@ -175,19 +145,14 @@ export function useChat() {
         });
 
         if (!response.ok || !response.body) {
-          let message = 'Failed to fetch assistant response';
+          let errorMessage = 'Failed to fetch assistant response.';
           try {
-            const text = await response.text();
-            if (text) {
-              const parsed = JSON.parse(text) as { error?: string };
-              if (parsed?.error) {
-                message = parsed.error;
-              }
-            }
+            const parsed = (await response.json()) as { error?: string };
+            errorMessage = parsed.error ?? errorMessage;
           } catch {
-            // ignore parsing errors
+            // Preserve the readable fallback message.
           }
-          throw new Error(message);
+          throw new Error(errorMessage);
         }
 
         const reader = response.body.getReader();
@@ -209,74 +174,28 @@ export function useChat() {
                 content: assistantContent,
                 status: 'streaming',
               });
-            }
-            if (event.type === 'done') {
+            } else if (event.type === 'done') {
               assistantContent = event.text;
-              assistantChartSpec = event.chartSpec ?? null;
               updateMessage(conversationId, assistantId, {
                 content: event.text,
-                chartSpec: assistantChartSpec,
+                chartSpec: event.chartSpec ?? null,
                 status: 'done',
               });
-            }
-            if (event.type === 'error') {
-              updateMessage(conversationId, assistantId, {
-                content: event.message,
-                status: 'error',
-              });
-              setError(event.message);
+            } else if (event.type === 'error') {
+              throw new Error(event.message);
             }
           }
         }
-      };
-
-      try {
-        if (user) {
-          try {
-            for await (const chunk of apiClient.chatStream(
-              conversationId,
-              trimmed,
-              datasetVersionId
-            )) {
-              if (chunk.type === 'text') {
-                assistantContent += chunk.content ?? '';
-                updateMessage(conversationId, assistantId, {
-                  content: assistantContent,
-                  status: 'streaming',
-                });
-              } else if (chunk.type === 'chart') {
-                assistantChartSpec = (chunk.spec as Record<string, unknown>) ?? null;
-              } else if (chunk.type === 'error') {
-                throw new Error(chunk.message ?? 'Failed to stream response');
-              }
-            }
-
-            updateMessage(conversationId, assistantId, {
-              content: assistantContent,
-              chartSpec: assistantChartSpec,
-              status: 'done',
-            });
-          } catch (error) {
-            if (
-              error instanceof ApiError &&
-              (error.code === 'NETWORK_ERROR' || error.status === 503 || error.status >= 500)
-            ) {
-              await streamFromLocal();
-            } else {
-              throw error;
-            }
-          }
-        } else {
-          await streamFromLocal();
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to stream response';
+      } catch (caught) {
+        const errorMessage =
+          caught instanceof Error
+            ? caught.message
+            : 'Failed to stream assistant response.';
         updateMessage(conversationId, assistantId, {
-          content: message,
+          content: errorMessage,
           status: 'error',
         });
-        setError(message);
+        setError(errorMessage);
       } finally {
         setStreaming(false);
         refreshSuggestions();
@@ -284,73 +203,20 @@ export function useChat() {
     },
     [
       activeConversationId,
-      addMessage,
-      currentDatasetVersionId,
-      currentProjectId,
       activeDataset,
+      addMessage,
       messagesByConversation,
       refreshSuggestions,
       setError,
       setStreaming,
       startConversation,
       updateMessage,
-      user,
     ]
   );
 
-  const initializeFromSupabase = useCallback(async () => {
-    if (!user) {
-      refreshSuggestions();
-      return;
-    }
-    try {
-      const response = await apiClient.getConversations();
-      const mappedConversations = (response.conversations ?? []).map((conv) => ({
-        id: conv.id,
-        title: conv.title ?? 'Conversation',
-        createdAt: conv.created_at,
-      }));
-      if (!mappedConversations.length) {
-        refreshSuggestions();
-        return;
-      }
-      setConversations(mappedConversations);
-
-      const conv = mappedConversations[0];
-      const messagesResponse = await apiClient.getMessages(conv.id);
-      const messages = (messagesResponse.messages ?? []).map((msg) => ({
-        id: msg.id,
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-        createdAt: msg.created_at,
-        chartSpec: msg.chart_spec ?? null,
-        status: 'done' as const,
-      }));
-
-      replaceMessages(conv.id, messages);
-      setActiveConversation(conv.id);
-      refreshSuggestions();
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        (error.code === 'NETWORK_ERROR' || error.status >= 500)
-      ) {
-        setError('Backend offline. Chat is running in local mode.');
-        refreshSuggestions();
-        return;
-      }
-      const message =
-        error instanceof ApiError ? error.message : 'Failed to load conversations';
-      setError(message);
-    }
-  }, [
-    refreshSuggestions,
-    replaceMessages,
-    setActiveConversation,
-    setConversations,
-    setError,
-    user,
-  ]);
+  const initializeLocalChat = useCallback(async () => {
+    refreshSuggestions();
+  }, [refreshSuggestions]);
 
   return {
     conversations,
@@ -361,7 +227,7 @@ export function useChat() {
     error,
     sendMessage,
     refreshSuggestions,
-    initializeFromSupabase,
+    initializeLocalChat,
     newChat: () => {
       startConversation('New chat');
       refreshSuggestions();

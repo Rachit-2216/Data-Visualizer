@@ -46,23 +46,23 @@ export function ScrollPhoenixJourney() {
 
   const phoenixX = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.4, 0.6, 0.72, 0.82, 1],
-    [-360, 350, -360, -330, -330, -260, 80],
+    [0, 0.2, 0.4, 0.6, 0.68, 0.78, 0.86, 1],
+    [-360, 350, -360, -430, -330, -120, -40, 80],
   );
   const phoenixY = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.4, 0.6, 0.72, 0.82, 1],
-    [130, -125, -145, 205, 35, 25, 30],
+    [0, 0.2, 0.4, 0.6, 0.68, 0.78, 0.86, 1],
+    [130, -125, -145, 235, 85, -30, 20, 30],
   );
   const phoenixScale = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.4, 0.6, 0.72, 0.82, 1],
-    [0.72, 0.9, 0.8, 0.92, 0.98, 0.95, 0.9],
+    [0, 0.2, 0.4, 0.6, 0.68, 0.78, 0.86, 1],
+    [0.72, 0.9, 0.8, 0.84, 0.94, 1.03, 0.92, 0.9],
   );
   const phoenixRotate = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.4, 0.6, 0.72, 0.82, 1],
-    [-16, 10, -18, 12, 0, -8, 4],
+    [0, 0.2, 0.4, 0.6, 0.68, 0.78, 0.86, 1],
+    [-16, 10, -18, -18, -8, 10, -4, 4],
   );
   const trailOpacity = useTransform(scrollYProgress, [0, 0.15, 0.5, 0.85, 1], [0.18, 0.75, 0.42, 0.85, 0.25]);
   const stageScale = useTransform(scrollYProgress, [0, 1], [1, 1.12]);
